@@ -193,6 +193,15 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .overlay:not([hidden]){animation:fadeIn .35s ease-out}
 .overlay:not([hidden]) .card{animation:cardIn .45s cubic-bezier(.2,.9,.3,1.25)}
 .toast{pointer-events:auto;cursor:pointer}
+.pcard{position:absolute;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:6;transform:translateX(-50%);box-sizing:border-box;width:min(380px,calc(100vw - 32px));
+  background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.pcard:not([hidden]){animation:toastIn .3s cubic-bezier(.2,.9,.3,1.25)}
+.pcard p{margin:6px 0 0;font-family:var(--font-mono);font-weight:500;font-size:12px;font-variant-numeric:tabular-nums}
+.pcard p.loss{color:var(--danger)}
+.pchead{display:flex;align-items:center;gap:8px}.pchead b{flex:1;font-size:14px}
+.pcx{border:0;background:none;color:var(--muted);font-size:14px;cursor:pointer;min-width:32px;min-height:32px}
+.pcrow{display:flex;gap:8px;margin-top:10px}.pcrow button{flex:1;min-height:40px}
+body.in-menu .pcard{display:none}
 .toast .tclose{display:block;font-size:11px;opacity:.65;margin-top:2px;font-weight:500}
 .speed.halved{color:var(--net-a);white-space:nowrap;min-width:max-content}
 .toast:not([hidden]){animation:toastIn .3s cubic-bezier(.2,.9,.3,1.25)}
@@ -300,13 +309,15 @@ button.pill:active{transform:scale(.95)}
 .notice{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--muted);padding:8px 14px;border-radius:8px;font-size:13px;font-weight:500;text-align:center;line-height:1.35;box-shadow:0 6px 20px rgba(0,0,0,.12);animation:toastIn .35s cubic-bezier(.2,.9,.3,1.25)}
 .notice.bill{border-left-color:var(--danger);font-family:var(--font-mono);font-weight:400}
 .notice.star{border-left-color:var(--net-a)}
+.notice{white-space:pre-line}
+.notice.statement{border-left-color:var(--net-a);font-family:var(--font-mono);font-weight:400}
 body.in-menu .notices{display:none}
 </style>
 
 <header class="bar">
   <div class="brand panel" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="currentColor"/></svg><span>Wattsville</span><span class="sub" id="cityLabel"></span></div>
   <div class="hud">
-    <div class="hud-top"><span class="money" id="score" title="Money to spend">$0</span><span class="mult" id="mult" title="Every home is lit: income ×1.25" hidden>×1.25</span><span class="stars" id="starsHud" title="Stars count everything you earn this run" aria-label="Stars earned this run">☆☆☆</span></div>
+    <div class="hud-top"><span class="money" id="score" title="Money to spend">$0</span><span class="mult" id="mult" title="Every home is lit: income ×1.25" hidden>×1.25</span><span class="stars" id="starsHud" title="Stars count the profit of this run: your most cash, less the money you started with" aria-label="Stars earned this run">☆☆☆</span></div>
     <div class="upkeep" id="upkeep" title="Running costs you will pay at the end of this week">Bills $0 this week</div>
     <div class="hud-row"><div class="legend" id="lit" title="Customers fully lit, by type"></div><div class="weekinfo"><span id="weekLabel">Week 1 · Mon</span><span class="track"><span class="fill" id="weekFill"></span></span></div></div>
   </div>
@@ -370,7 +381,8 @@ body.in-menu .notices{display:none}
           <li>Each plant powers as many homes as its pips. Plants cost money: when a color shows <b>short</b>, build or upgrade one. Too many homes on one network causes a brownout: they all dim and pay less. Route homes to plants with free pips, join same-color plants, or buy upgrades and new plants.</li>
           <li>Each color is a voltage for one kind of customer: amber 220 V for homes, blue 380 V for factories, magenta 600 V DC for tram depots, green DC for charging stations. Factories and depots use 2 pips but pay more.</li>
           <li>Where two cables of different colors cross, the game adds a crossover for you ($10). Erase the cable there and you get it back.</li>
-          <li>Hold a plant for a moment to upgrade it: +2 pips of capacity.</li>
+          <li>Hold a plant for a moment to upgrade it: +2 pips of capacity. Tap a plant to see what it costs and earns, and to upgrade or sell it (you get half of its price back).</li>
+          <li>Stars count your profit: the most cash you have in the run, less the money you started with. Spare pips and long cables cost money every week, so a lean network earns more.</li>
           <li>From week 2, customers buy new appliances and need more power (the dots above them). Every week ends with bills for your cable, bridges, crossovers and plants. Coal, gas and nuclear plants also pay for the fuel they burn: the more power they send, the more fuel they use. In debt, you can't build.</li>
           <li>Unlit homes slowly dim, and the bar under them shows the time left. If one goes fully dark, the game ends.</li>
         </ul>
@@ -403,11 +415,16 @@ body.in-menu .notices{display:none}
       <button class="primary" id="resumeBtn">Resume</button>
       <button class="secondary" id="leaveBtn">Leave city</button>
       <button class="secondary" id="pauseQuitBtn" hidden>Save and quit</button>
-      <p class="note" id="pauseNote">If you leave, the earnings so far count as a run: they can set your best and earn stars.</p>
+      <p class="note" id="pauseNote">If you leave, the profit so far counts as a run: it can set your best and earn stars.</p>
     </div>
   </div>
 
   <div class="toast" id="toast" hidden></div>
+  <div class="pcard" id="pcard" role="dialog" aria-label="Plant" hidden>
+    <div class="pchead"><b id="pcTitle"></b><button class="pcx" id="pcClose" aria-label="Close">✕</button></div>
+    <p id="pcPips"></p><p id="pcWeek"></p>
+    <div class="pcrow"><button class="secondary" id="pcUp"></button><button class="secondary" id="pcSell"></button></div>
+  </div>
   <div class="notices" id="notices" role="status"></div>
 
   <div class="titlecard" id="titleCard" hidden aria-hidden="true"><h1>Wattsville</h1><p>Keep the lights on.</p></div>
@@ -427,7 +444,7 @@ body.in-menu .notices{display:none}
   <button class="tool" id="tErase" style="--tc:var(--danger)" aria-pressed="false" aria-label="Erase" title="Erase (E): turn on to remove cable and get the money back; turn off to draw cable again"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h5.5M15.5 12H21" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.8 8.8l4.4 6.4M14.2 8.8l-4.4 6.4" stroke="var(--tc)" stroke-width="1.9" stroke-linecap="round"/></svg><span class="nm">Erase</span><span class="n">E</span></button>
   <button class="tool" id="tPlant" aria-pressed="false" aria-label="Build a plant" title="Build a plant (P): tap again to change its color"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5v3M12 18.5v3" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="var(--tc)" stroke-width="1.9"/><path d="M8.7 12c1.1-2.2 2.2-2.2 3.3 0s2.2 2.2 3.3 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="nm">Plant</span><span class="n" id="nPlant">$60</span></button>
   </div>
-  <span class="hint">Double-click to zoom · Right-drag to erase · Hold a plant to upgrade · Space pause · S speed · M sound · P plant</span>
+  <span class="hint">Double-click to zoom · Right-drag to erase · Tap a plant to inspect, hold to upgrade · Space pause · S speed · M sound · P plant</span>
 </nav>
 
 <script src="vendor/three.min.js"></script>
@@ -562,36 +579,36 @@ const CITIES=[
   {id:'godalming',name:'Godalming',year:1881,place:'Surrey, England',source:'hydro',
    fact:'A water wheel at Westbrook Mill on the River Wey lit the town’s streets from September 1881.',
    why:'The world’s first public electricity supply: anyone in the town could ask to be connected, not only one mill or one house.',
-   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,stars:[5000,33000,49000],
+   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,stars:[2500,6000,9000],
    water:river([[-30,3],[-14,2],[-6,4],[2,3],[10,5],[18,4],[30,5]],1.6)},
   {id:'newyork',name:'New York',year:1882,place:'Lower Manhattan',source:'coal',
    fact:'Edison’s Pearl Street Station burned coal to turn its dynamos, and switched on for about 85 customers on 4 September 1882.',
    why:'The first central power station: one plant, cables under the streets and a meter for each paying customer. Power companies still work this way.',
-   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,stars:[5000,32000,57000],
+   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,stars:[1500,4500,6500],
    // Manhattan narrows to its southern tip between the Hudson (west) and the East River (east)
    water:(x,y)=>{const s=Math.max(0,y-2)*0.6,L=-8+s,R=7-s;return (x<=L&&x>L-3)||(x>=R&&x<R+2)||y>=9}},
   {id:'askov',name:'Askov',year:1891,place:'Jutland, Denmark',source:'wind',
    fact:'Poul la Cour built test wind turbines at the Askov folk high school from 1891, and trained the first “wind electricians”.',
    why:'La Cour measured the wind like a scientist and showed that farms and villages could make their own power. Denmark still leads the world in wind power.',
-   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,stars:[6000,34000,70000],
+   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,stars:[2000,5500,8000],
    // open farmland with a small lake and a stream
    water:anyOf((x,y)=>Math.hypot((x+11)/1.4,y-6)<2.4,river([[-11,6],[-4,9],[4,10],[30,12]],1.0))},
   {id:'niagara',name:'Niagara Falls',year:1896,place:'New York, USA',source:'hydro',
    fact:'From 16 November 1896, the Adams Power Plant at Niagara Falls sent AC power to Buffalo, about 30 km away.',
    why:'Niagara proved that alternating current (AC) can carry power far from where it is made. It ended the “war of the currents”: the grids of the world use AC.',
-   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,stars:[5000,32000,42000],
+   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,stars:[2000,5000,7500],
    // the Niagara River runs north past the town
    water:river([[-4,-20],[-3,-8],[-1,-2],[1,4],[2,20]],3.2)},
   {id:'obninsk',name:'Obninsk',year:1954,place:'Kaluga region, USSR',source:'nuclear',
    fact:'On 27 June 1954 the Obninsk plant became the first nuclear power station to supply an electricity grid.',
    why:'Obninsk started the nuclear age of electricity: a little fuel makes a lot of power, with no smoke. France now gets most of its electricity this way.',
-   plant:[-6,-3],cable:50,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[6000,36000,55000],
+   plant:[-6,-3],cable:50,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[3000,7000,11000],
    // the Protva river runs along the north of the town
    water:river([[-30,-5],[-14,-4],[-6,-6],[2,-5],[10,-7],[30,-6]],2)},
   {id:'dubai',name:'Dubai',year:1961,place:'Deira and Bur Dubai',source:'gas',
    fact:'The Dubai Electricity Company began supplying Deira in 1961. Today, Dubai’s power stations burn natural gas.',
    why:'Dubai grew from a small trading town into a city of millions on power from oil and gas. Its gas plants also turn seawater into drinking water.',
-   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[5000,31000,41000],
+   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[1500,3500,5500],
    // the gas pipeline comes in from the west and runs through the town, south of the Creek
    pipe:[[-18,-3],[-7,-2],[-3,2],[4,4],[14,3],[22,-1]],
    // the Gulf coast to the north; the Creek divides Deira from Bur Dubai and ends in a lagoon
@@ -612,7 +629,9 @@ const SOURCES={
 const SRC=()=>SOURCES[city().source];
 let cityI=0;try{const s=localStorage.getItem('wattsville-city');const i=CITIES.findIndex(c=>c.id===s);if(i>=0)cityI=i}catch(e){}
 const city=()=>CITIES[cityI];
-const bestFor=c=>{try{return +localStorage.getItem('wattsville-cash-'+c.id)||0}catch(e){return 0}};
+// the best profit of a run in each city (the old key held total earnings, a different scale: it is not read)
+const BEST_KEY='wattsville-profit-';
+const bestFor=c=>{try{return +localStorage.getItem(BEST_KEY+c.id)||0}catch(e){return 0}};
 
 /* ---------- the power company: money ----------
    Income: each fully lit home pays $0.25 a second; a brownout home pays its share.
@@ -620,19 +639,22 @@ const bestFor=c=>{try{return +localStorage.getItem('wattsville-cash-'+c.id)||0}c
    Bonuses: +$2 the first time a home is connected; +$5 for saving a home that was more than 60% dim.
    Spending: cable $1 a square, bridges $8 a water square (both refunded when erased), crossovers $10,
    plant upgrades (+2 pips) and new plants, which start cheap and rise by a percentage with each purchase.
-   Stars: three targets for total money earned in a run. All cities are open from the start. */
+   Stars: three targets for the profit of a run: the most cash the company had, less the money it started with.
+   So a lean network beats a big wasteful one. All cities are open from the start. */
 const ECON={pay:0.25,allLit:1.25,cable:1,bridge:8,cross:10,up:15,upMul:1.07,plant:25,plantMul:1.2,first:2,saved:5};
 // pacing: seconds a powered home takes to fully recover; an unconnected home to go dark; the brownout
 // dimming divisor; and how often homes appear (start, fastest, and how quickly it speeds up)
 const BAL={recover:30,dark:70,brown:40,spawnStart:14,spawnMin:6,spawnRamp:120,
   // rising demand: first purchase after growStart seconds; then every growEvery seconds, shrinking by growFaster a week
   growStart:150,growEvery:46,growFaster:2,growMin:15};
-// weekly running costs: per cable square, per bridge square, per crossover, per plant
-const UPKEEP={cable:0.9,bridge:5,cross:4,plant:30};
+// weekly running costs: per cable square, per bridge square, per crossover; a plant pays a base amount
+// and an amount for each pip of capacity, used or not, so spare capacity costs money
+const UPKEEP={cable:1.2,bridge:5,cross:4,plant:12,pip:6};
+const plantUpkeep=p=>UPKEEP.plant+UPKEEP.pip*p.cap;
 function upkeep(){
   let cable=0,bridges=0,crosses=0;
   for(let i=0;i<N;i++){cable+=wires[i].length;if(bridge[i])bridges++;if(cross[i])crosses++}
-  const c=cable*UPKEEP.cable,b=bridges*UPKEEP.bridge,x=crosses*UPKEEP.cross,p=plants.length*UPKEEP.plant,f=st.fuel||0;
+  const c=cable*UPKEEP.cable,b=bridges*UPKEEP.bridge,x=crosses*UPKEEP.cross,p=plants.reduce((a,q)=>a+plantUpkeep(q),0),f=st.fuel||0;
   return {total:Math.round(c+b+x+p)+Math.round(f),cable:Math.round(c+b+x),plants:Math.round(p),fuel:Math.round(f)};
 }
 /* Customer types. Each color is a supply voltage serving one kind of customer. Voltages are
@@ -650,7 +672,9 @@ const payOf=h=>TYPES[h.color].pay*dmd(h)/TYPES[h.color].demand;
 // capacity starts cheap and gets dearer by a percentage with every purchase
 const upCost=()=>Math.round(ECON.up*Math.pow(ECON.upMul,st.ups));
 const plantCost=()=>Math.round(ECON.plant*SRC().cost*Math.pow(ECON.plantMul,st.built));
-function earn(x){st.score+=x;st.money+=x}
+function earn(x){st.money+=x;st.weekIn=(st.weekIn||0)+x}
+// the score of a run is its profit: the most cash the company has had, less the money it started with
+function trackProfit(){st.score=Math.max(st.score,st.money-st.start)}
 function spend(x){if(st.money<x){notice(`Not enough money: you need $${x}`);sfx.thud();return false}st.money-=x;return true}
 const fmt$=v=>'$'+Math.floor(v).toLocaleString();
 const starsFor=(c,score)=>c.stars.filter(s=>score>=s).length;
@@ -730,7 +754,8 @@ function newGame(){
   ripples=[];linkBorn=new Map();energized=new Map();floats=[];
   const C=city();
   // starting cash matches the old starting kit: cable, plus bridges and crossovers at their prices
-  st={short:[],growT:BAL.growStart,money:C.cable+C.bridges*ECON.bridge+C.cross*ECON.cross,lives:3,ups:0,built:0,plantColor:0,twT:4,rescues:0,starsHit:0,allLit:false,t:0,week:1,weekT:0,score:0,colors:1,spawnT:10*C.spawnMul,bounds:null,cam:null,over:false,paused:true,mode:'draw',awaitBoost:false};
+  const startMoney=C.cable+C.bridges*ECON.bridge+C.cross*ECON.cross;
+  st={short:[],growT:BAL.growStart,money:startMoney,start:startMoney,weekIn:0,lives:3,ups:0,built:0,plantColor:0,twT:4,rescues:0,starsHit:0,allLit:false,t:0,week:1,weekT:0,score:0,colors:1,spawnT:10*C.spawnMul,bounds:null,cam:null,over:false,paused:true,mode:'draw',awaitBoost:false};
   fitBounds();st.cam={...st.bounds};zoom.z=zoom.tz=1;
   genTerrain();buildContours();
   silent=true;
@@ -824,7 +849,8 @@ function plantCell(){
   const pick=far.length?far:ok;
   return pick.length?pick[Math.floor(Math.random()*pick.length)]:null;
 }
-function spawnPlant(color){const p=plantCell();if(p) addEntity('plant',color,p.x,p.y)}
+// a free plant (the start of a colour) sells as if it cost the base price
+function spawnPlant(color){const p=plantCell();if(p) addEntity('plant',color,p.x,p.y).paid=Math.round(ECON.plant*SRC().cost)}
 
 // A link is an explicit cable segment between two neighbouring squares, made only by dragging.
 // Squares that merely sit next to each other never connect on their own.
@@ -920,7 +946,7 @@ function eraseCell(i){
 // buy +2 homes of capacity on a plant
 function buyUpgrade(p){
   const c=upCost();if(!spend(c)) return false;
-  p.cap+=2;st.ups++;sfx.bell(p.color,2);ripple(p.x+.5,p.y+.5,p.color,2.2,1.65);floatText(p.x+.5,p.y,`-$${c}`);ensureSupply(p.color);allocate();return true;
+  p.cap+=2;st.ups++;p.paid=(p.paid||0)+c;sfx.bell(p.color,2);ripple(p.x+.5,p.y+.5,p.color,2.2,1.65);floatText(p.x+.5,p.y,`-$${c}`);ensureSupply(p.color);allocate();return true;
 }
 // buy a new plant on an empty land square, in the color chosen on the tool
 function buyPlant(i){
@@ -928,8 +954,41 @@ function buyPlant(i){
   if(!freeLand(x,y)){flashes.push({i,t:0.5});sfx.thud();return false}
   const why=plantRule(x,y);if(why){flashes.push({i,t:0.5});sfx.thud();notice(why);return false}
   const c=plantCost();if(!spend(c)) return false;
-  st.built++;addEntity('plant',st.plantColor,x,y);floatText(x+.5,y,`-$${c}`);ensureSupply(st.plantColor);allocate();return true;
+  st.built++;addEntity('plant',st.plantColor,x,y).paid=c;floatText(x+.5,y,`-$${c}`);ensureSupply(st.plantColor);allocate();return true;
 }
+// sell a plant for half of what it cost (with its upgrades). The last plant of a colour stays.
+const SELL_SHARE=0.5;
+const sellValue=p=>Math.round(SELL_SHARE*(p.paid||0));
+function sellPlant(p){
+  if(plants.filter(q=>q.color===p.color).length<2){notice(`This is the last ${COLOR_NAMES[p.color]} plant. Build another before you sell it.`);sfx.thud();return false}
+  const i=idx(p.x,p.y),v=sellValue(p);
+  plants.splice(plants.indexOf(p),1);occ[i]=null;
+  for(const k of links){const l=unlk(k);if(l.a===i||l.b===i){links.delete(k);linkBorn.delete(k)}}
+  st.money+=v;sfx.erase();ripple(p.x+.5,p.y+.5,p.color,1.6,0.9);floatText(p.x+.5,p.y,`+$${v}`);
+  ensureSupply(p.color);allocate();return true;
+}
+// what a plant earns: the pips it sends, at the pay of its colour's customers, for a week
+const plantIncome=p=>p.load*ECON.pay*WEEK*TYPES[p.color].pay/TYPES[p.color].demand*(st.allLit?ECON.allLit:1);
+const plantFuel=p=>p.load*SRC().fuel;
+
+/* ---------- plant card: tap a plant to see what it costs and earns, and to upgrade or sell it ---------- */
+let cardPlant=null;
+function openPlantCard(p){if(!$('toast').hidden)hideToast();cardPlant=p;$('pcard').hidden=false;updatePlantCard();$('pcUp').focus({preventScroll:true})}
+function closePlantCard(){cardPlant=null;$('pcard').hidden=true}
+function updatePlantCard(){
+  const p=cardPlant;if(!p) return;
+  if(!plants.includes(p)||st.over||!$('intro').hidden){closePlantCard();return}
+  const T=TYPES[p.color],up=plantUpkeep(p),fuel=plantFuel(p),inc=plantIncome(p),net=Math.round(inc-up-fuel);
+  $('pcTitle').textContent=`${COLOR_NAMES[p.color][0].toUpperCase()+COLOR_NAMES[p.color].slice(1)} plant · ${T.name.toLowerCase()}, ${T.volt}`;
+  $('pcPips').textContent=`Sends ${p.load} of ${p.cap} pips`+(p.load<p.cap?` · ${p.cap-p.load} spare`:'');
+  $('pcWeek').textContent=`A week: earns about $${Math.round(inc)} \u2212 upkeep $${up}${fuel?` \u2212 fuel $${Math.round(fuel)}`:''} = ${net<0?'\u2212':'+'}$${Math.abs(net)}`;
+  $('pcWeek').classList.toggle('loss',net<0);
+  $('pcUp').textContent=`+2 pips \u00b7 $${upCost()}`;$('pcUp').setAttribute('aria-label',`Upgrade: 2 more pips for $${upCost()}`);$('pcUp').disabled=st.money<upCost();
+  $('pcSell').textContent=`Sell \u00b7 +$${sellValue(p)}`;
+}
+$('pcUp').onclick=()=>{if(cardPlant){buyUpgrade(cardPlant);updateHud();updatePlantCard()}};
+$('pcSell').onclick=()=>{if(cardPlant&&sellPlant(cardPlant)){closePlantCard();updateHud()}};
+$('pcClose').onclick=closePlantCard;
 
 /* ---------- camera ---------- */
 let W=0,H=0,DPR=1,view={s:0,ox:0,oy:0};
@@ -1049,7 +1108,7 @@ cv.addEventListener('pointerdown',e=>{
     if(zoom.tz>1) drag={pan:true,x:e.clientX,y:e.clientY,fx:zoom.tfx,fy:zoom.tfy};
     return;
   }
-  drag={c,last:i};tickN=0;
+  drag={c,last:i,spent:0,upkeep0:upkeep().cable};tickN=0;
   // holding a plant without moving off it upgrades it; moving draws a cable as before
   const p=occ[i];
   if(p&&p.kind==='plant'&&st.mode==='draw'&&!tut){
@@ -1077,7 +1136,7 @@ cv.addEventListener('pointermove',e=>{
     const j=idx(x,y);
     const before=st.money;
     if(!placeAt(j,drag.c)){flashes.push({i:j,t:0.5});sfx.thud();drag=null;break}
-    if(st.money<before) sfx.tick();
+    if(st.money<before){sfx.tick();drag.spent+=before-st.money}
     const k=lk(drag.last,j,drag.c);
     if(!links.has(k)){links.add(k);linkBorn.set(k,{t:performance.now(),from:drag.last});changed=true}
     drag.last=j;
@@ -1086,7 +1145,10 @@ cv.addEventListener('pointermove',e=>{
   if(changed) allocate();
   updateHud();
 });
-const endDrag=()=>{cancelHold();drag=null};
+const endDrag=()=>{
+  // a short tap on a plant (no cable drawn, released before the upgrade) opens its card
+  if(drag&&drag.hold&&performance.now()-drag.hold.t0<HOLD_MS) openPlantCard(drag.hold.p);
+  cancelHold();drag=null};
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 cv.addEventListener('pointerleave',()=>{hover=-1});
 
@@ -1108,6 +1170,7 @@ $('tPlant').onclick=()=>{
 $('pauseBtn').onclick=togglePause;
 document.addEventListener('keydown',e=>{
   if(exitAnim) return;
+  if(cardPlant&&e.key==='Escape'){e.preventDefault();closePlantCard();return}
   if(!$('intro').hidden){
     if(e.key==='ArrowLeft'){e.preventDefault();slideToCity(cityI-1)}
     else if(e.key==='ArrowRight'){e.preventDefault();slideToCity(cityI+1)}
@@ -1143,7 +1206,7 @@ function togglePause(){
   if(userPaused){
     const name=tut?'the tutorial':city().name;
     $('pauseWhere').textContent=tut?'Tutorial':`${city().name} · Week ${st.week}, ${DAYS[Math.min(6,Math.floor(st.weekT/WEEK*7))]}`;
-    $('pauseEarned').textContent=fmt$(st.score)+' earned';$('pauseEarned').hidden=!!tut;
+    $('pauseEarned').textContent=fmt$(st.score)+' profit';$('pauseEarned').hidden=!!tut;
     $('leaveBtn').textContent=`Leave ${name}`;$('pauseNote').hidden=!!tut;
     $('paused').hidden=false;$('resumeBtn').focus();saveRun();
   }else $('paused').hidden=true;
@@ -1154,7 +1217,7 @@ function leaveRun(){
   $('paused').hidden=true;resume();
   if(tut){endTutorial(false);return}
   const kwh=Math.floor(st.score),C=city();
-  if(kwh>bestFor(C)){try{localStorage.setItem('wattsville-cash-'+C.id,kwh)}catch(e){}}
+  if(kwh>bestFor(C)){try{localStorage.setItem(BEST_KEY+C.id,kwh)}catch(e){}}
   steamRunEnded(C,kwh);
   clearRun();exitCity();
 }
@@ -1170,13 +1233,13 @@ function saveRun(){
   const ws=[];wires.forEach((w,i)=>{if(w.length)ws.push([i,w])});
   const ix=a=>{const out=[];a.forEach((v,i)=>{if(v)out.push(i)});return out};
   const strip=e=>{const o={...e};delete o.vis;delete o.litAt;return o};
-  const run={v:2,city:city().id,st:{...st,paused:true,mode:'draw'},wires:ws,links:[...links],cross:ix(cross),bridge:ix(bridge),plants:plants.map(strip),houses:houses.map(strip)};
+  const run={v:3,city:city().id,st:{...st,paused:true,mode:'draw'},wires:ws,links:[...links],cross:ix(cross),bridge:ix(bridge),plants:plants.map(strip),houses:houses.map(strip)};
   try{localStorage.setItem(RUN_KEY,JSON.stringify(run))}catch(e){}
 }
 function clearRun(){try{localStorage.removeItem(RUN_KEY)}catch(e){}}
 function resumeRun(){
   let run=null;try{run=JSON.parse(localStorage.getItem(RUN_KEY))}catch(e){}
-  const i=run&&run.v===2?CITIES.findIndex(c=>c.id===run.city):-1;
+  const i=run&&run.v===3?CITIES.findIndex(c=>c.id===run.city):-1;
   if(i<0){clearRun();return false}
   cityI=i;newGame();
   wires=Array.from({length:N},()=>[]);run.wires.forEach(([k,w])=>wires[k]=w);
@@ -1234,15 +1297,19 @@ const TYPE_ICONS=[
   '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="5" width="12" height="7" rx="2" fill="currentColor"/><path d="M7 5 5 1.5h4" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>',
   '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="3" y="1" width="7" height="12" rx="1.6" fill="currentColor"/><path d="M10 4h1.5a1 1 0 0 1 1 1v4" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>'
 ];
-function floatBill(bill){
-  notice(`Week ${st.week} bills \u2212$${bill.total.toLocaleString()} (cable $${bill.cable.toLocaleString()} \u00b7 plants $${bill.plants.toLocaleString()}${bill.fuel?` \u00b7 fuel $${bill.fuel.toLocaleString()}`:''})`,'bill');
+// the weekly statement: what the week earned, what it cost, and the profit
+function floatBill(bill,income){
+  const net=Math.round(income-bill.total),sign=net<0?'\u2212':'+';
+  notice(`Week ${st.week}: earned $${Math.round(income).toLocaleString()} \u2212 bills $${bill.total.toLocaleString()} = ${sign}$${Math.abs(net).toLocaleString()}\n`+
+    `cable $${bill.cable.toLocaleString()} \u00b7 plants $${bill.plants.toLocaleString()}${bill.fuel?` \u00b7 fuel $${bill.fuel.toLocaleString()}`:''}`,net<0?'bill':'statement');
 }
 // A new week no longer pauses for a choice: you buy what you need, when you need it.
 // The town grows, and new colors arrive in weeks 2, 3 and 5.
 function weekEnd(){
   // pay the week's running costs first (week 1 is free while the company gets started)
   const bill=st.week>1?upkeep():{total:0,cable:0,plants:0,fuel:0};st.money-=bill.total;st.lastBill=bill.total;st.fuel=0;
-  if(bill.total>0) floatBill(bill);
+  const income=st.weekIn||0;st.weekIn=0;
+  if(bill.total>0) floatBill(bill,income);
   st.week++;st.weekT=0;sfx.week();
   fitBounds();
   if([2,3,5].includes(st.week)&&st.colors<city().maxColors){
@@ -1274,14 +1341,14 @@ function gameOver(h){
   const kwh=Math.floor(st.score);
   const C=city(),best=bestFor(C),runStars=starsFor(C,kwh),bestStars=starsFor(C,Math.max(best,kwh));
   const wasUnlocked=cityI<CITIES.length-1&&unlocked(cityI+1);
-  let isBest=false;if(kwh>best){isBest=true;try{localStorage.setItem('wattsville-cash-'+C.id,kwh)}catch(e){}}
+  let isBest=false;if(kwh>best){isBest=true;try{localStorage.setItem(BEST_KEY+C.id,kwh)}catch(e){}}
   steamRunEnded(C,kwh);
   $('overWhy').textContent=`A home went dark for too long, and ${C.name} lost faith in its power company.`;
-  $('overScore').textContent=fmt$(kwh)+' earned';
+  $('overScore').textContent=fmt$(kwh)+' profit';
   $('overStars').textContent=starStr(runStars);
   $('overMeta').textContent=`${C.name} ${C.year} · Week ${st.week}, ${DAYS[Math.min(6,Math.floor(st.weekT/WEEK*7))]} · ${houses.length} homes · ${st.rescues} saved · ${isBest?'New best':'Best '+fmt$(best)}`;
   const nextStar=C.stars.find(s=>s>kwh);
-  let next=nextStar?`Next star at ${fmt$(nextStar)} earned.`:'All three stars in this city.';
+  let next=nextStar?`Next star at ${fmt$(nextStar)} profit.`:'All three stars in this city.';
   if(!wasUnlocked&&cityI<CITIES.length-1&&unlocked(cityI+1)){const N=CITIES[cityI+1];next=`Unlocked: ${N.name}, ${N.year}. `+next}
   $('overNext').textContent=next;
   setTimeout(()=>{$('over').hidden=false;$('againBtn').focus()},reduceMotion?600:2000);
@@ -1406,7 +1473,7 @@ function update(dt){
   }
   // plants that burn fuel pay for every pip they send, for as long as they send it
   if(!tut&&SRC().fuel){let load=0;for(const p of plants)load+=p.load;st.fuel=(st.fuel||0)+load*SRC().fuel*dt/WEEK}
-  checkRewards();
+  trackProfit();checkRewards();
   if(st.weekT>=WEEK) weekEnd();
 }
 
@@ -1427,6 +1494,7 @@ function updateHud(){
    $('score').classList.toggle('debt',st.money<0)}
   $('weekLabel').textContent=`Week ${st.week} · ${DAYS[Math.min(6,Math.floor(st.weekT/WEEK*7))]}`;
   $('weekFill').style.width=Math.min(100,st.weekT/WEEK*100)+'%';
+  if(cardPlant) updatePlantCard();
 }
 
 /* ---------- drawing ---------- */
@@ -2290,6 +2358,10 @@ function overlay2D(now){
   if(drag&&drag.hold){const h=drag.hold,f=Math.min(1,(performance.now()-h.t0)/HOLD_MS);
     if(f>.15){const [sx,sy]=worldToScreen(h.p.x+.5,h.p.y+.5,1.2),t=`+2 pips · ${fmt$(upCost())}`;ctx.textBaseline='bottom';
       ctx.lineWidth=4;ctx.strokeStyle=theme.bg;ctx.strokeText(t,sx,sy);ctx.fillStyle=theme.ink;ctx.fillText(t,sx,sy)}}
+  // while a cable is drawn: what it cost, and what it adds to the weekly bills
+  if(drag&&drag.spent>0&&drag.last>=0){const [sx,sy]=worldToScreen(cx(drag.last)+.5,cy(drag.last)+.5,1.1),
+    t=`\u2212$${drag.spent} \u00b7 +$${Math.max(0,upkeep().cable-drag.upkeep0)}/week`;ctx.textBaseline='bottom';
+    ctx.lineWidth=4;ctx.strokeStyle=theme.bg;ctx.strokeText(t,sx,sy-14);ctx.fillStyle=theme.ink;ctx.fillText(t,sx,sy-14)}
   ctx.textBaseline='alphabetic';
   for(const f of floats){
     const p=f.t/f.dur,[sx,s0]=worldToScreen(f.x,f.y,.7),sy=s0-10-p*26;
@@ -2693,7 +2765,7 @@ function renderMenu(){
   if(b>0){
     const next=T.find(t=>b<t),prevT=next?(T.filter(t=>t<next).pop()||0):0,f=next?(b-prevT)/Math.max(1,next-prevT):1;
     prog=`<div class="row"><span>Best ${fmt$(b)}</span><span>${next?fmt$(next-b)+' to next ★':'All three stars'}</span></div><div class="track"><div class="fill" style="width:${(clamp01(f)*100).toFixed(1)}%"></div></div>`;
-  }else prog=`<span class="new">New city · ★ at ${fmt$(T[0])} · ★★ at ${fmt$(T[1])}</span>`;
+  }else prog=`<span class="new">New city · ★ at ${fmt$(T[0])} profit · ★★ at ${fmt$(T[1])}</span>`;
   $('menuProg').innerHTML=prog;
   $('menuStarRow').innerHTML=[0,1,2].map(k=>`<i class="${k<n?'on':''}">★</i>`).join('');$('menuStarRow').setAttribute('aria-label',`${n} of 3 stars`);
   $('playBtn').textContent=b>0?'Play again':'Play';
