@@ -89,6 +89,16 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .hud{display:flex;flex-direction:column;gap:4px;min-width:0}
 .hud-top{display:flex;align-items:baseline;gap:8px}
 .upkeep{font-size:11px;color:var(--muted);font-family:var(--font-body)}
+/* the week meter: income so far, income at this rate by the week's end, and the bill */
+.ledger{display:flex;flex-direction:column;gap:4px;width:min(240px,62vw)}
+.lbar{position:relative;display:block;height:6px;border-radius:3px;background:var(--line);overflow:visible}
+.lbar .lin,.lbar .lpace{position:absolute;top:0;bottom:0;left:0;border-radius:3px;transition:width .4s ease}
+.lbar .lin{background:var(--ink);opacity:.8;z-index:1}
+.lbar .lpace{background:var(--ink);opacity:.22}
+.lbar .lbill{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--danger);border-radius:1px;z-index:2;transition:left .4s ease}
+.lbar .lbill[hidden]{display:none}
+.ledger.loss .lpace{background:var(--danger);opacity:.35}
+.upkeep b{font-weight:600;color:var(--ink)}.upkeep b.neg{color:var(--danger)}
 .money.debt{color:var(--danger)}
 .money{font-family:var(--font-mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em;line-height:1}
 .hud .stars{font-size:12px}
@@ -322,7 +332,10 @@ body.in-menu .notices{display:none}
   <div class="brand panel" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z" fill="currentColor"/></svg><span>Wattsville</span><span class="sub" id="cityLabel"></span></div>
   <div class="hud">
     <div class="hud-top"><span class="money" id="score" title="Money to spend">$0</span><span class="mult" id="mult" title="Every home is lit: income ×1.25" hidden>×1.25</span><span class="stars" id="starsHud" title="Stars count the profit of this run: your most cash, less the money you started with" aria-label="Stars earned this run">☆☆☆</span></div>
-    <div class="upkeep" id="upkeep" title="Running costs you will pay at the end of this week">Bills $0 this week</div>
+    <div class="ledger" title="This week: what your customers paid so far (solid), what they will pay by the week’s end at this rate (faint), and the bills due at the week’s end (red mark)">
+      <span class="lbar" aria-hidden="true"><span class="lin" id="lgIn"></span><span class="lpace" id="lgPace"></span><i class="lbill" id="lgBill"></i></span>
+      <span class="upkeep" id="upkeep">Week 1 is free: no bills</span>
+    </div>
     <div class="hud-row"><div class="legend" id="lit" title="Customers fully lit, by type"></div><div class="weekinfo"><span id="weekLabel">Week 1 · Mon</span><span class="track"><span class="fill" id="weekFill"></span></span></div></div>
   </div>
   <div class="ctrls">
@@ -1513,11 +1526,28 @@ function updateHud(){
     const short=demOf(c)>capOf(c);st.short[c]=short;if(!tut&&!previewing) checkShort(c,short);
     html+=`<span class="lg${short?' short':''}" style="color:var(${NET_VARS[c]})" title="${TYPES[c].name}: ${TYPES[c].volt}${short?' \u00b7 not enough plant capacity':''}">${TYPE_ICONS[c]}<b>${on}/${all.length}</b>${short?'<i>short</i>':''}</span>`}
    if($('lit').innerHTML!==html)$('lit').innerHTML=html}
-  {const u=upkeep().total;$('upkeep').textContent=st.week===1?'No bills in week 1':`Bills $${u.toLocaleString()} at week\u2019s end`;
-   $('score').classList.toggle('debt',st.money<0)}
+  updateLedger();$('score').classList.toggle('debt',st.money<0);
   $('weekLabel').textContent=`Week ${st.week} · ${DAYS[Math.min(6,Math.floor(st.weekT/WEEK*7))]}`;
   $('weekFill').style.width=Math.min(100,st.weekT/WEEK*100)+'%';
   if(cardPlant) updatePlantCard();
+}
+
+// the week meter: income so far, the income at today's rate by the week's end, and the bill at the week's end
+function incomeRate(){
+  const rate=ECON.pay*(st.allLit?ECON.allLit:1);
+  return houses.reduce((a,h)=>a+rate*payOf(h)*(h.powered?1:(h.share||0)),0);
+}
+function updateLedger(){
+  const left=Math.max(0,WEEK-st.weekT),got=st.weekIn||0,pace=got+incomeRate()*left;
+  const u=upkeep(),bill=st.week===1?0:u.cable+u.plants+Math.round(plants.reduce((a,p)=>a+plantFuel(p),0));
+  const top=Math.max(1,pace,bill)*1.08,pc=v=>Math.min(100,v/top*100).toFixed(1)+'%',net=Math.round(pace-bill);
+  $('lgIn').style.width=pc(got);$('lgPace').style.width=pc(pace);
+  $('lgBill').hidden=!bill;$('lgBill').style.left=pc(bill);
+  document.querySelector('.ledger').classList.toggle('loss',net<0);
+  const m=v=>'$'+Math.round(Math.abs(v)).toLocaleString(),sign=net<0?'\u2212':'+';
+  const html=st.week===1?`Earned ${m(got)} \u00b7 week 1 is free: no bills`
+    :`Earned ${m(got)} \u00b7 bills ${m(bill)} \u00b7 week <b class="${net<0?'neg':''}">${sign}${m(net)}</b>`;
+  if($('upkeep').innerHTML!==html)$('upkeep').innerHTML=html;
 }
 
 /* ---------- drawing ---------- */
@@ -2167,13 +2197,18 @@ function updateStreaks(dt){
 const cableG=new T3.Group();world.add(cableG);
 let cSig='',cData=[],pulseCurves=[],lastEnerg=null;
 const pulseM=new T3.InstancedMesh(new T3.SphereGeometry(.055,8,6),new T3.MeshBasicMaterial({color:0xffffff}),4000);pulseM.count=0;pulseM.frustumCulled=false;world.add(pulseM);
-// at a crossover the upper cable lifts in a smooth arch: highest over the insulator, rising from the squares either side
+// at a crossover the upper cable jumps the lower one in a high arch (an upside-down U): it lifts from about
+// one square before the crossover, peaks over it and comes down one square after; the lower cable dips a little
 const isUpper=(i,col)=>cross[i]&&wires[i].length===2&&col===Math.max(...wires[i]);
-function hgt(i,col){
-  if(isUpper(i,col))return cellH[i]+.34;
-  const x=cx(i),y=cy(i);let sh=0;
-  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<COLS&&ny<ROWS&&isUpper(idx(nx,ny),col)&&links.has(lk(i,idx(nx,ny),col)))sh=.09}
-  return cellH[i]+(water[i]?.05:.11)+sh;
+const ARCH={h:.5,r:1.05,dip:.05,dipR:.55};
+const hgt=(i,col)=>cellH[i]+(water[i]?.05:.11);
+const archAt=d=>d>=ARCH.r?0:ARCH.h*Math.cos(Math.PI/2*d/ARCH.r)**2;
+function lift(pts,col){
+  const xs=[];for(let i=0;i<N;i++)if(cross[i]&&wires[i].length===2&&wires[i].includes(col))xs.push([cx(i)+.5,cy(i)+.5,isUpper(i,col)]);
+  if(!xs.length)return pts;
+  return pts.map(p=>{let y=p[1];for(const [x,z,up] of xs){const d=Math.hypot(p[0]-x,p[2]-z);
+    if(up)y+=archAt(d);else if(d<ARCH.dipR)y-=ARCH.dip*Math.cos(Math.PI/2*d/ARCH.dipR)**2}
+    return [p[0],y,p[2],p[3]]});
 }
 const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];
 function smooth(pts){
@@ -2211,7 +2246,7 @@ function buildCables(){
       let x=cx(i)+.5,z=cy(i)+.5;
       if(k>0&&k<ch.length-1&&!isNode(i)&&!cross[i]&&!cross[ch[k-1]]&&!cross[ch[k+1]]){const a=ch[k-1],b=ch[k+1];if(cy(a)===cy(b))z+=sway(i,true);else if(cx(a)===cx(b))x+=sway(i,false)}
       return [x,hgt(i,col),z,cross[i]?1:0]}));
-    for(const r of runs){const cv=curveOf(smooth(r));if(!cv)continue;
+    for(const r of runs){const cv=curveOf(lift(smooth(r),col));if(!cv)continue;
       const m=mesh(new T3.TubeGeometry(cv,Math.min(400,r.length*10),.085,8,false),CABLE[col],0,0,0,cableG);m.receiveShadow=false}
     for(const [i] of adj)if(!occ[i]&&wires[i].includes(col)&&!cross[i]&&nbrs(i).length!==2)
       mesh(G('joint',()=>new T3.SphereGeometry(.13,12,8)),CABLE[col],cx(i)+.5,hgt(i,col),cy(i)+.5,cableG);
@@ -2225,10 +2260,17 @@ function buildCables(){
     for(let k=0;k<4;k++)mesh(G('plank',()=>box(.18,.04,.86)),SM('plank'),-.3+k*.2,.05,0,g);
     for(const z of [-.42,.42])mesh(G('rail',()=>box(1,.05,.05)),SM('plank'),0,.11,z,g);
   }
-  // crossovers: a pad and an insulator that carries one cable over the other
+  // crossovers: a pad, and two insulator posts that hold the arch on either side of the lower cable
   for(let i=0;i<N;i++)if(cross[i]){
-    mesh(G('xpad',()=>cyl(.3,.33,.05,20)),SM('surface'),cx(i)+.5,cellH[i]+.025,cy(i)+.5,cableG,false);
-    mesh(G('xpost',()=>cyl(.06,.08,.26,12)),SM('ink'),cx(i)+.5,cellH[i]+.15,cy(i)+.5,cableG);mesh(G('xcap',()=>new T3.SphereGeometry(.08,12,8)),SM('wall'),cx(i)+.5,cellH[i]+.28,cy(i)+.5,cableG,false);
+    const x=cx(i)+.5,z=cy(i)+.5,h=cellH[i];
+    mesh(G('xpad',()=>cyl(.3,.33,.05,20)),SM('surface'),x,h+.025,z,cableG,false);
+    const up=Math.max(...wires[i]),L=j=>j>=0&&j<N&&links.has(lk(i,j,up));
+    const horiz=cx(i)>0&&cx(i)<COLS-1&&L(i-1)&&L(i+1),vert=L(i-COLS)&&L(i+COLS);
+    if(!horiz&&!vert)continue; // the upper cable turns here: the arch stands alone
+    const d=.36,top=hgt(i,up)+archAt(d)-.07;
+    for(const sg of [-1,1]){const px=horiz?x+sg*d:x,pz=horiz?z:z+sg*d;
+      mesh(G('xpost',()=>cyl(.03,.045,1,8)),SM('ink'),px,h+top/2-h/2,pz,cableG).scale.y=top-h;
+      mesh(G('xcap',()=>new T3.SphereGeometry(.05,10,8)),SM('wall'),px,top,pz,cableG,false)}
   }
   lastEnerg=null;
 }
@@ -2237,7 +2279,7 @@ function buildPulses(){
   pulseCurves=[];
   for(const d of cData)d.chains.forEach((ch,n)=>{
     let start=0,dir=null;
-    const close=end=>{if(dir===null||end<=start)return;let pts=d.runs[n].slice(start,end+1);if(!dir)pts=pts.reverse();const cv=curveOf(smooth(pts));if(cv)pulseCurves.push({cv,len:cv.getLength()})};
+    const close=end=>{if(dir===null||end<=start)return;let pts=d.runs[n].slice(start,end+1);if(!dir)pts=pts.reverse();const cv=curveOf(lift(smooth(pts),d.col));if(cv)pulseCurves.push({cv,len:cv.getLength()})};
     for(let k=0;k<ch.length-1;k++){const from=energized.get(lk(ch[k],ch[k+1],d.col)),di=from===undefined?null:from===ch[k];if(di!==dir){close(k);start=k;dir=di}}
     close(ch.length-1);
   });
