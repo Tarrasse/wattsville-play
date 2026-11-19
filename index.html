@@ -198,10 +198,14 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .pcard:not([hidden]){animation:toastIn .3s cubic-bezier(.2,.9,.3,1.25)}
 .pcard p{margin:6px 0 0;font-family:var(--font-mono);font-weight:500;font-size:12px;font-variant-numeric:tabular-nums}
 .pcard p.loss{color:var(--danger)}
+.pcard button:disabled{opacity:.5;cursor:default}
 .pchead{display:flex;align-items:center;gap:8px}.pchead b{flex:1;font-size:14px}
 .pcx{border:0;background:none;color:var(--muted);font-size:14px;cursor:pointer;min-width:32px;min-height:32px}
 .pcrow{display:flex;gap:8px;margin-top:10px}.pcrow button{flex:1;min-height:40px}
 body.in-menu .pcard{display:none}
+/* in the tutorial the coach holds the bottom, so the card opens at the top */
+.tutorial .pcard{bottom:auto;top:calc(16px + env(safe-area-inset-top,0px))}
+@media (orientation:landscape) and (max-height:500px){.tutorial .pcard{left:max(12px,env(safe-area-inset-left,0px));transform:none;width:min(320px,50%);animation:none}}
 .toast .tclose{display:block;font-size:11px;opacity:.65;margin-top:2px;font-weight:500}
 .speed.halved{color:var(--net-a);white-space:nowrap;min-width:max-content}
 .toast:not([hidden]){animation:toastIn .3s cubic-bezier(.2,.9,.3,1.25)}
@@ -987,6 +991,8 @@ function updatePlantCard(){
   $('pcWeek').classList.toggle('loss',net<0);
   $('pcUp').textContent=`+2 pips \u00b7 $${upCost()}`;$('pcUp').setAttribute('aria-label',`Upgrade: 2 more pips for $${upCost()}`);$('pcUp').disabled=st.money<upCost();
   $('pcSell').textContent=`Sell \u00b7 +$${sellValue(p)}`;
+  // the tutorial only shows the buttons: buying or selling would change the lesson's town
+  if(tut) $('pcUp').disabled=$('pcSell').disabled=true; else $('pcSell').disabled=false;
 }
 $('pcUp').onclick=()=>{if(cardPlant){buyUpgrade(cardPlant);updateHud();updatePlantCard()}};
 $('pcSell').onclick=()=>{if(cardPlant&&sellPlant(cardPlant)){closePlantCard();updateHud()}};
@@ -1113,9 +1119,9 @@ cv.addEventListener('pointerdown',e=>{
   drag={c,last:i,spent:0,upkeep0:upkeep().cable};tickN=0;
   // holding a plant without moving off it upgrades it; moving draws a cable as before
   const p=occ[i];
-  if(p&&p.kind==='plant'&&st.mode==='draw'&&!tut){
+  if(p&&p.kind==='plant'&&st.mode==='draw'&&(!tut||tut.step>=8)){
     drag.hold={p,i,t0:performance.now()};
-    drag.hold.timer=setTimeout(()=>{
+    if(!tut) drag.hold.timer=setTimeout(()=>{
       if(!drag||!drag.hold||drag.hold.p!==p) return;
       drag=null;buyUpgrade(p);updateHud();
     },HOLD_MS);
@@ -1149,7 +1155,7 @@ cv.addEventListener('pointermove',e=>{
 });
 const endDrag=()=>{
   // a short tap on a plant (no cable drawn, released before the upgrade) opens its card
-  if(drag&&drag.hold&&performance.now()-drag.hold.t0<HOLD_MS) openPlantCard(drag.hold.p);
+  if(drag&&drag.hold&&(tut||performance.now()-drag.hold.t0<HOLD_MS)) openPlantCard(drag.hold.p);
   cancelHold();drag=null};
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 cv.addEventListener('pointerleave',()=>{hover=-1});
@@ -1362,12 +1368,14 @@ function gameOver(h){
    to do one thing, then explains what happened. */
 let tut=null;
 const tutDone=()=>{try{return localStorage.getItem('wattsville-tut')==='1'}catch(e){return false}};
-const TUT_CHAPTER=[0,0,1,1,2,3,3,4,4];
+// the coach's dots: one chapter per idea (light, branches, pips, brownout, pooling, money)
+const TUT_CHAPTER=[0,0,1,1,2,3,3,4,5,5,5,5];
+const TUT_FINAL=11;
 function coach(text,final){
   const c=$('coach');c.hidden=false;
   const t=$('coachText');t.classList.remove('in');void t.offsetWidth;t.textContent=text;t.classList.add('in');
-  const ch=TUT_CHAPTER[tut?tut.step:8]??4;
-  $('coachDots').innerHTML=[0,1,2,3,4].map(k=>`<i class="${k<=ch?'on':''}"></i>`).join('');
+  const ch=TUT_CHAPTER[tut?tut.step:TUT_FINAL]??5;
+  $('coachDots').innerHTML=[0,1,2,3,4,5].map(k=>`<i class="${k<=ch?'on':''}"></i>`).join('');
   $('coachPlay').hidden=!final;
   if(final){$('coachPlay').textContent=`Play ${CITIES[tut.next].name}`;$('coachSkip').textContent='Choose city'}
   else $('coachSkip').textContent='Skip tutorial';
@@ -1401,7 +1409,7 @@ function tutStep(){
       break;
     case 0:
       if(!E.h1){E.h1=home(X+2,Y);coach('Night has fallen on Wattsville, and this home is dark.')}
-      if(T.t>2.4){E.p1=addEntity('plant',0,X-3,Y);coach('Here is a power plant. Drag from the plant to the home to lay cable.');T.ghost=[[X-3,Y],[X+2,Y]];go(1)}
+      if(T.t>2.4){E.p1=addEntity('plant',0,X-3,Y);E.p1.paid=ECON.plant*SRC().cost;coach('Here is a power plant. Drag from the plant to the home to lay cable. The label shows its price, and its upkeep each week.');T.ghost=[[X-3,Y],[X+2,Y]];go(1)}
       break;
     case 1:
       if(E.h1.powered){T.ghost=null;sfx.start();coach('There’s light! A lit home sends energy back to the town.');go(2)}
@@ -1420,11 +1428,24 @@ function tutStep(){
       if(E.h4.share>0){coach('Brownout! Four homes now share three homes’ worth of power, so they all dim.');go(6)}
       break;
     case 6:
-      if(T.t>3.8){E.p2=addEntity('plant',0,X-2,Y+2);coach('Link this new plant into your network. Plants of the same color pool their power.');T.ghost=[[X-2,Y+2],[X-2,Y]];go(7)}
+      if(T.t>3.8){E.p2=addEntity('plant',0,X-2,Y+2);E.p2.paid=ECON.plant*SRC().cost;coach('Link this new plant into your network. Plants of the same color pool their power.');T.ghost=[[X-2,Y+2],[X-2,Y]];go(7)}
       break;
     case 7:
       if(houses.length&&houses.every(h=>h.powered)){T.ghost=null;sfx.week();go(8);
-        coach('Every home is lit. You run the power company: lit homes pay you, and you spend it on cable, bridges and plants. Unlit homes slowly dim; if one goes fully dark, the city replaces you.',true);
+        coach(`Every home is lit. Each lit home pays you $${Math.round(ECON.pay*WEEK)} a week. Now tap a plant to see what it costs and earns.`);}
+      break;
+    case 8: // the plant card: what a plant sends, earns and costs
+      if(cardPlant){coach('The card shows the pips this plant sends, and its week: earnings less upkeep. Spare pips cost upkeep too. Here you can also upgrade a plant, or sell it for half its price. Close the card to go on.');go(9)}
+      break;
+    case 9: // the weekly statement
+      if(!cardPlant){
+        const bill=upkeep(),income=houses.reduce((a,h)=>a+ECON.pay*WEEK*payOf(h),0);
+        floatBill(bill,income);sfx.week();
+        coach('Every week ends with a statement: what your homes paid, less the bills for cable and plants. Stars count your profit, so short cables and few spare pips win.');go(10)}
+      break;
+    case 10:
+      if(T.t>(reduceMotion?3:5.5)){go(TUT_FINAL);
+        coach('You run the power company now. Unlit homes slowly dim; if one goes fully dark, the city replaces you.',true);
         try{localStorage.setItem('wattsville-tut','1')}catch(e){}}
       break;
   }
@@ -1678,7 +1699,7 @@ function draw(now){
     }
   }
   // holding a plant: a ring fills up, then the plant is upgraded
-  if(drag&&drag.hold){
+  if(drag&&drag.hold&&!tut){
     const h=drag.hold,f=Math.min(1,(performance.now()-h.t0)/HOLD_MS),x=h.p.x+.5,y=h.p.y+.5;
     if(f>.15){
       ctx.strokeStyle=theme.nets[h.p.color];ctx.lineWidth=.09;ctx.lineCap='round';
@@ -2361,7 +2382,7 @@ function sync3D(now){
     m.position.set(r.x,groundAt(r.x,r.y)+.05,r.y);m.scale.set(R,1,R);m.material.color.set(r.warn?theme.danger:theme.nets[r.c]);m.material.opacity=(1-p)*.6}
   // holding a plant: the ring fills, then the plant is upgraded
   holdM.visible=false;
-  if(drag&&drag.hold){const h=drag.hold,f=Math.min(1,(performance.now()-h.t0)/HOLD_MS);
+  if(drag&&drag.hold&&!tut){const h=drag.hold,f=Math.min(1,(performance.now()-h.t0)/HOLD_MS);
     if(f>.15){if(Math.abs(f-holdF)>.01){holdF=f;holdM.geometry.dispose();const g=new T3.RingGeometry(.66,.78,48,1,Math.PI/2-f*Math.PI*2,f*Math.PI*2);g.rotateX(-Math.PI/2);holdM.geometry=g}
       holdM.visible=true;holdM.position.set(h.p.x+.5,cellH[idx(h.p.x,h.p.y)]+.06,h.p.y+.5);holdM.material.color.set(theme.nets[h.p.color])}}
   // light and shadows follow the view
@@ -2374,7 +2395,7 @@ function overlay2D(now){
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
   if(tut)drawTutorialLayer(now);
   ctx.font='600 13px "IBM Plex Mono",ui-monospace,monospace';ctx.textAlign='center';ctx.lineJoin='round';
-  if(drag&&drag.hold){const h=drag.hold,f=Math.min(1,(performance.now()-h.t0)/HOLD_MS);
+  if(drag&&drag.hold&&!tut){const h=drag.hold,f=Math.min(1,(performance.now()-h.t0)/HOLD_MS);
     if(f>.15){const [sx,sy]=worldToScreen(h.p.x+.5,h.p.y+.5,1.2),t=`+2 pips · ${fmt$(upCost())}`;ctx.textBaseline='bottom';
       ctx.lineWidth=4;ctx.strokeStyle=theme.bg;ctx.strokeText(t,sx,sy);ctx.fillStyle=theme.ink;ctx.fillText(t,sx,sy)}}
   // while a cable is drawn: what it cost, and what it adds to the weekly bills
@@ -2875,7 +2896,7 @@ new MutationObserver(()=>setTimeout(redrawMenu,60)).observe(document.documentEle
 new ResizeObserver(()=>{if(!inMenu())return;layoutMenu();if(!$('cityMap').hidden)drawMap()}).observe(stage);
 
 $('againBtn').onclick=()=>startCity(cityI);
-$('coachSkip').onclick=()=>{const final=tut&&tut.step>=8;endTutorial(!final)}; // skip: go straight to the chosen city; at the end: back to the menu
+$('coachSkip').onclick=()=>{const final=tut&&tut.step>=TUT_FINAL;endTutorial(!final)}; // skip: go straight to the chosen city; at the end: back to the menu
 $('coachPlay').onclick=()=>endTutorial(true);
 $('cityBtn').onclick=exitCity;
 $('muteBtn').onclick=()=>{audioInit();setMuted(!muted);if(!muted)sfx.click()};
