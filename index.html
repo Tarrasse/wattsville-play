@@ -479,6 +479,8 @@ let ctx=cv.getContext('2d'); // swapped for a moment while the city pictures are
 let previewing=false; // true while a scripted game makes a city picture: no sound, no messages, no saving
 let links,water,wires,cross,bridge,occ,plants,houses,st,flashes,drag=null,hover=-1,allocAcc=0,theme={};
 let pipe=new Uint8Array(0);
+// how much drawn water covers a point (0..1): the river's smooth shape, which can differ from the square grid
+let drawnWater=null;
 let onResize=null,onTheme=null; // set by the 3D view
 const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
 const idx=(x,y)=>y*COLS+x, cx=i=>i%COLS, cy=i=>Math.floor(i/COLS);
@@ -2036,7 +2038,9 @@ function buildTerrain(){
   for(let i=0;i<N;i++)if(water[i]){let s=0,n=0;const x=cx(i),y=cy(i);for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]]){const nx=x+dx,ny=y+dy;if(nx>=0&&ny>=0&&nx<COLS&&ny<ROWS&&!water[idx(nx,ny)]){s+=LH[idx(nx,ny)];n++}}LH[i]=n?s/n:.06}
   const LHf=(x,y)=>LH[idx(clampI(x,COLS),clampI(y,ROWS))];
   // water only where the squares say water: the smooth outline never reaches the centre of a land square
-  const wMask=(x,z)=>wAt(x,z)*ss(.12,.45,bil(Wc,x,z,true));
+  // the drawn river always covers the middle of each water square: a square at the edge, whose centre is only
+  // just inside the river's shape, still shows as water (its bridge and a water wheel stand in it)
+  const wMask=(x,z)=>{const g=bil(Wc,x,z,true);return Math.max(wAt(x,z),ss(.55,.9,g))*ss(.12,.45,g)};drawnWater=wMask;
   eFn=(x,z)=>{const out=Math.max(-x,x-COLS,-z,z-ROWS,0),k=ss(0,3,out),land=bil(LHf,x,z)*(1-k)+raw(x,z)*k,w=wMask(x,z);return land*(1-w)-.42*w};
   const pos=terrainGeo.attributes.position,H=new Float32Array(GW*GH);
   for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const k=j*GW+i,x=-MARGIN+i/RES,z=-MARGIN+j/RES;H[k]=eFn(x,z);pos.setY(k,H[k]);tW[k]=wMask(x,z)}
@@ -2225,20 +2229,34 @@ function plantView(p){
   const g=new T3.Group();g.position.set(p.x+.5,0,p.y+.5);world.add(g);
   const src=tut?'hydro':city().source,m=new T3.Group();g.add(m);
   const upd=STATION[src](m,p.color),pg=new T3.Group();g.add(pg);
-  // a water wheel turns its wheel side toward the water next to it, and spins with the current
-  let spin=1;
+  const v={g,upd,pg,pk:'',spin:1,m,src,bk:-1};
   if(src==='hydro'){
-    const side=[[0,1,0],[1,0,Math.PI/2],[-1,0,-Math.PI/2],[0,-1,Math.PI]].find(([dx,dy])=>{const nx=p.x+dx,ny=p.y+dy;return nx>=0&&ny>=0&&nx<COLS&&ny<ROWS&&water[idx(nx,ny)]});
-    const th=side?side[2]:0;m.rotation.y=th;
     // the wheel stands out over the bank with its bottom in the water; an axle beam ties it to the mill
-    if(side){const wh=m.userData.wheel,cy0=Math.min(.31,WATER_Y-cellH[idx(p.x,p.y)]+.24);wh.position.set(0,cy0,.6);
-      mesh(G('hy-axle',()=>box(.05,.05,.5)),SM('plank'),0,Math.max(cy0,.08),.32,m,false);
-      // keep the capacity pips on dry land: if the river is in front, they go behind the plant
-      if(side[1]===1)pg.position.z=-1.24}
-    if(side&&!tut){const f=flowAt(p.x+.5+side[0]*.8,p.y+.5+side[1]*.8),along=f.x*Math.cos(th)-f.z*Math.sin(th);spin=along<0?-1:1}
+    const cy0=Math.min(.31,WATER_Y-cellH[idx(p.x,p.y)]+.24);v.wheelY=cy0;
+    v.axle=mesh(G('hy-axle',()=>box(.05,.05,.62)),SM('plank'),0,Math.max(cy0,.08),.38,m,false);
+    orientWheel(v,p);
   }
-  return {g,upd,pg,pk:'',spin};
+  return v;
 }
+// A water wheel turns toward a water square next to its mill: one with no bridge if it can (a bridge would
+// hide it), and of those the one where the drawn river is widest. It spins with the current.
+const WHEEL_SIDES=[[0,1,0],[1,0,Math.PI/2],[-1,0,-Math.PI/2],[0,-1,Math.PI]];
+function orientWheel(v,p){
+  const sides=WHEEL_SIDES.filter(([dx,dy])=>{const nx=p.x+dx,ny=p.y+dy;return nx>=0&&ny>=0&&nx<COLS&&ny<ROWS&&water[idx(nx,ny)]});
+  const wet=([dx,dy])=>drawnWater?[.6,.72,.9].reduce((a,d)=>a+drawnWater(p.x+.5+dx*d,p.y+.5+dy*d),0):0;
+  const score=sd=>wet(sd)-(bridge[idx(p.x+sd[0],p.y+sd[1])]?10:0);
+  const side=sides.length?sides.reduce((a,b)=>score(b)>score(a)?b:a):null;
+  v.bk=wheelKey(p);v.m.rotation.y=side?side[2]:0;
+  // with no water next to it (the tutorial), the wheel stays beside the mill house
+  if(side) v.m.userData.wheel.position.set(0,v.wheelY,.72); else v.m.userData.wheel.position.set(.22,.31,.3);
+  v.axle.visible=!!side;
+  // keep the capacity pips on dry land: if the wheel is in front, they go behind the plant
+  v.pg.position.z=side&&side[1]===1?-1.24:0;
+  v.spin=1;
+  if(side&&!tut){const th=side[2],f=flowAt(p.x+.5+side[0]*.8,p.y+.5+side[1]*.8),along=f.x*Math.cos(th)-f.z*Math.sin(th);v.spin=along<0?-1:1}
+}
+// which water squares next to a mill have a bridge: when it changes, the wheel turns again
+const wheelKey=p=>WHEEL_SIDES.reduce((a,[dx,dy],k)=>{const nx=p.x+dx,ny=p.y+dy;return a|(nx>=0&&ny>=0&&nx<COLS&&ny<ROWS&&bridge[idx(nx,ny)]?1<<k:0)},0);
 function updatePips(v,p){
   const n=p.cap+(p.extra||0),key=n+':'+p.cap+':'+p.load+':'+p.over;if(key===v.pk)return;v.pk=key;emptyGroup(v.pg);
   const w=Math.min(.14,.95/n),gap=w*.35,tot=n*w+(n-1)*gap,geo=G('pip'+w.toFixed(3),()=>box(w,.05,.09));
@@ -2291,6 +2309,7 @@ function sync3D(now){
   // plants
   dropViews(pviews,plants);
   for(const p of plants){let v=pviews.get(p);if(!v){v=plantView(p);pviews.set(p,v)}
+    if(v.src==='hydro'&&wheelKey(p)!==v.bk) orientWheel(v,p);
     const pa=v.grown?1:Math.min(1,(st.t-p.born)/0.6);v.g.scale.setScalar((reduceMotion?1:Math.max(.01,easeOutBack(pa)))*vanish(p));
     // once the cables are gone, a kept plant shows the run's plant: its size, no load
     const kept=H&&ho>=.3&&H.keep.get(p);
