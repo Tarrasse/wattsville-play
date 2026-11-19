@@ -2471,7 +2471,7 @@ function sync3D(now){
   CABLE.forEach(m=>m.opacity=(waveR<0?1:Math.max(.35,1-overEl*.5))*cFade);
   if(ho>=0) fadeCables(cFade);
   let pc=0;
-  if(waveR<0&&energized.size&&cFade>.6){const ph=reduceMotion?0:((now/1000)*1.1)%.5,M4=new T3.Matrix4();
+  if(waveR<0&&energized.size&&cFade>.6){const ph=reduceMotion?0:pulsePh,M4=new T3.Matrix4();
     for(const {cv,len} of pulseCurves)for(let d=ph;d<len&&pc<4000;d+=.5){const p=cv.getPointAt(d/len);M4.makeTranslation(p.x,p.y+.075,p.z);pulseM.setMatrixAt(pc++,M4)}}
   pulseM.count=pc;pulseM.instanceMatrix.needsUpdate=true;
   // plants
@@ -2561,9 +2561,13 @@ onTheme();
 
 
 let last=performance.now(),themeAcc=0,dtDraw=0.016,saveAcc=0;
+// the current pulses move at the game speed and stop on pause; the menu town and the tutorial keep real time
+let pulsePh=0;
+const pulseRate=()=>inMenu()||tut?1:st.paused||st.over?0:SPEEDS[speedI].v*(toastOpen()?0.5:1);
 function frame(now){
   const dt=Math.max(0,Math.min(0.05,(now-last)/1000));last=now;dtDraw=dt;
   if(!st.paused&&!st.over) update(dt*SPEEDS[speedI].v*(toastOpen()?0.5:1));
+  pulsePh=(pulsePh+dt*1.1*pulseRate())%.5;
   flashes.forEach(f=>f.t-=dt);
   ripples.forEach(r=>r.t+=dt);ripples=ripples.filter(r=>r.t<r.dur);
   floats.forEach(f=>f.t+=dt);floats=floats.filter(f=>f.t<f.dur);
