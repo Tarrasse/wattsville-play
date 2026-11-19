@@ -323,7 +323,7 @@ button.pill:active{transform:scale(.95)}
 .marrow.next{right:max(14px,env(safe-area-inset-right,0px))}
 .menu.wide .marrow{display:grid}
 .marrow:disabled{opacity:.3;cursor:default}
-.mmap{position:absolute;inset:0;z-index:2;background:color-mix(in srgb,var(--bg) 94%,transparent)}
+.mmap{position:absolute;inset:0;z-index:2;background:var(--bg)}
 .mmap:not([hidden]){animation:fadeIn .2s ease-out}
 .msafe{position:absolute;top:env(safe-area-inset-top,0px);left:0;height:env(safe-area-inset-bottom,0px);width:0;visibility:hidden}
 .mmap>canvas{position:absolute;inset:0;width:100%;height:100%}
@@ -2988,53 +2988,102 @@ $('mapPins').onclick=e=>{const b=e.target.closest('.pin');if(!b)return;$('cityMa
 
 /* ---------- map of the cities: where they are, on a survey grid of 10° squares ---------- */
 const PLACES={godalming:[51.19,-0.61],newyork:[40.71,-74.01],askov:[55.47,9.1],niagara:[43.09,-79.06],obninsk:[55.1,36.61],dubai:[25.2,55.27]};
-const LON=[-95,65],LAT=[16,66];
-function mapFrame(){
-  const narrow=W<560,top=$('mapSafe').offsetTop,bottom=$('mapSafe').offsetHeight;
-  return {x:narrow?22:56,y:top+(narrow?104:88),w:W-(narrow?44:112),h:H-top-bottom-(narrow?150:130)};
+// The coastlines cover LON × LAT. The map shows a part of it at one scale for longitude and latitude,
+// so each 10° cell is square and the land keeps its shape. KEEP (the cities and a margin) always shows.
+const LON=[-95,65],LAT=[16,66],KEEP={lon:[-83,61],lat:[19,62]};
+function mapProjection(){
+  const head=$('cityMap').querySelector('.mmaphead'),top=head.offsetTop+head.offsetHeight,bottom=$('mapSafe').offsetHeight,narrow=W<560;
+  const side=narrow?16:56,fy=top+(narrow?12:20),fw=W-2*side,fh=H-bottom-fy-(narrow?16:32);
+  const s=Math.min(fw/(KEEP.lon[1]-KEEP.lon[0]),fh/(KEEP.lat[1]-KEEP.lat[0]));
+  const lonSpan=Math.min(fw/s,LON[1]-LON[0]),latSpan=Math.min(fh/s,LAT[1]-LAT[0]);
+  const start=(k,span,box)=>Math.max(box[0],Math.min(box[1]-span,(k[0]+k[1]-span)/2));
+  const lon0=start(KEEP.lon,lonSpan,LON),lat1=start(KEEP.lat,latSpan,LAT)+latSpan;
+  const w=lonSpan*s,h=latSpan*s,x=(W-w)/2,y=fy+(fh-h)/2;
+  return {s,x,y,w,h,lon0,lon1:lon0+lonSpan,lat0:lat1-latSpan,lat1,area:{x:6,y:top+2,w:W-12,h:H-bottom-top-8},
+    X:lon=>x+(lon-lon0)*s,Y:lat=>y+(lat1-lat)*s};
 }
-// Niagara Falls is close to New York, so its pin moves up and left, with a line to the real place.
-// On a narrow map Askov moves up too, so it does not cover Godalming.
-const pinShift=f=>f.w<500?{niagara:[-46,-58],askov:[0,-28]}:{niagara:[-46,-38]};
-function mapPoint(id,f){const [lat,lon]=PLACES[id];return [f.x+(lon-LON[0])/(LON[1]-LON[0])*f.w,f.y+(LAT[1]-lat)/(LAT[1]-LAT[0])*f.h]}
-function pinPoint(id,f){const p=mapPoint(id,f),s=pinShift(f)[id]||[0,0];return [Math.max(f.x+26,Math.min(f.x+f.w-26,p[0]+s[0])),p[1]+s[1]]}
+const overlap=(a,b)=>Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y));
+const dotBox=(p,r)=>({x:p[0]-r,y:p[1]-r,w:2*r,h:2*r});
+// Each city's label (its pin button) goes on its place, or near it with a leader line. It covers no other label,
+// no grid label and no other place. On a small map (phone portrait) the labels go off the map, so the land stays clear.
+function placeLabels(P,pts,sizes,hard,soft){
+  const map={x:P.x,y:P.y,w:P.w,h:P.h},A=P.area,compact=P.s<4,placed=[];
+  return pts.map((p,i)=>{
+    const {w,h}=sizes[i],others=pts.filter((q,j)=>j!==i).map(q=>dotBox(q,7));
+    let best=null;
+    for(let dy=-360;dy<=360;dy+=6)for(let dx=-180;dx<=180;dx+=6){
+      const b={x:p[0]+dx-w/2,y:p[1]+dy-21,w,h:h+3};
+      if(b.x<A.x||b.y<A.y||b.x+b.w>A.x+A.w||b.y+b.h>A.y+A.h)continue;
+      let cost=Math.hypot(dx,dy);
+      for(const o of placed)cost+=overlap(b,o)*100;
+      for(const o of hard)cost+=overlap(b,o)*100;
+      for(const o of others)cost+=overlap(b,o)*100;
+      if(dx||dy)cost+=overlap(b,dotBox(p,7))*100;
+      for(const o of soft)cost+=overlap(b,o)*.3;
+      if(compact)cost+=overlap(b,map)*2;
+      if(!best||cost<best.cost)best={cost,dx,dy,b};
+    }
+    if(!best)best={dx:0,dy:0,b:{x:p[0]-w/2,y:p[1]-21,w,h:h+3}};
+    placed.push(best.b);
+    return {x:p[0]+best.dx,y:p[1]+best.dy,box:best.b,moved:!!(best.dx||best.dy)};
+  });
+}
 // coastlines from Natural Earth (1:110m, public domain), clipped to the map and simplified: [lon,lat,lon,lat,...]
 const LAND=[[-72.6,19.9,-70.0,19.6,-68.3,18.6,-70.7,18.4,-71.4,17.6,-73.9,18.0,-74.4,18.7,-72.3,18.7,-73.4,19.6],[-79.7,22.8,-74.2,20.3,-77.8,19.9,-77.1,20.4,-78.7,21.6,-81.8,22.6,-85.0,21.9,-82.3,23.2],[15.5,38.2,15.1,36.6,12.4,37.6,12.6,38.1],[9.2,41.2,9.7,39.2,8.8,38.9,8.2,41.0],[-56.1,50.7,-56.8,49.8,-53.5,49.2,-53.8,48.5,-53.1,48.7,-52.6,47.5,-53.1,46.7,-54.2,46.8,-54.2,47.8,-55.4,46.9,-56.0,46.9,-55.3,47.4,-56.3,47.6,-59.3,47.6,-59.2,48.5,-57.4,50.7,-55.9,51.6,-55.4,51.6],[-6.8,52.3,-10.0,51.8,-9.2,52.9,-9.7,53.9,-6.7,55.2,-5.7,54.6],[-3.0,58.6,-4.1,57.6,-2.0,57.7,-3.1,56.0,-2.1,55.9,0.5,52.9,1.7,52.7,1.1,51.8,1.4,51.3,-5.2,50.0,-5.8,50.2,-3.4,51.4,-5.3,52.0,-4.2,52.3,-4.6,53.5,-3.1,53.4,-2.9,54.0,-4.8,54.8,-5.0,55.8,-5.6,55.3,-6.1,56.8,-5.0,58.6],[-85.2,65.7,-80.1,63.7,-83.1,64.1,-85.5,63.1,-85.9,63.6,-87.2,63.5,-86.4,64.0,-85.9,65.7],[-14.5,66.5,-14.7,65.8,-13.6,65.1,-18.7,63.5,-22.8,64.0,-21.8,64.4,-24.0,64.9,-22.2,65.4,-24.3,65.6,-22.1,66.4,-20.6,65.7],[-88.3,68,-87.4,67.2,-86.2,68,-81.8,68,-81.4,67.1,-85.8,66.6,-87.3,64.8,-90.7,63.6,-90.8,63.0,-91.9,62.8,-94.2,60.9,-94.7,58.9,-93.2,58.8,-92.3,57.1,-90.9,57.3,-85.0,55.3,-82.3,55.1,-82.1,53.3,-79.9,51.2,-78.6,52.6,-79.8,54.7,-76.5,56.5,-78.5,58.8,-77.3,59.9,-78.1,62.3,-77.4,62.6,-73.8,62.4,-71.4,61.1,-69.6,61.1,-69.3,59.0,-67.6,58.2,-64.6,60.3,-61.4,57.0,-61.8,56.3,-57.3,54.6,-55.8,53.3,-55.7,52.1,-60.0,50.2,-66.4,50.2,-71.1,46.8,-68.7,48.3,-65.1,49.2,-64.2,48.7,-65.1,48.1,-64.5,46.2,-61.5,45.9,-60.5,47.0,-59.8,45.9,-65.4,43.5,-66.1,43.6,-66.2,44.5,-64.4,45.3,-67.1,45.1,-70.7,43.0,-70.0,41.6,-73.7,40.9,-71.9,40.9,-74.0,40.8,-74.9,38.9,-75.5,39.5,-75.1,38.4,-75.9,37.2,-76.3,39.2,-76.3,38.1,-77.0,38.2,-76.3,37.9,-75.7,35.6,-81.3,31.4,-80.1,26.9,-80.4,25.2,-81.7,25.9,-82.9,29.1,-84.1,30.1,-85.1,29.6,-86.4,30.4,-89.2,30.3,-89.2,29.3,-90.2,29.1,-93.8,29.7,-97,28.0,-97,20.4,-95.9,18.8,-94.4,18.1,-91.4,18.9,-90.3,21.0,-87.1,21.5,-88.9,15.9,-84.4,15.8,-83.1,15.0,-83.4,14,-91.4,14,-93.9,15.9,-97,15.8,-97.0,68,-96.1,68,-96.1,67.3,-95.6,68],[-66.0,68,-61.9,66.9,-63.9,65.0,-66.7,66.4,-68.0,66.3,-68.1,65.7,-65.3,64.4,-64.7,63.4,-65.0,62.7,-68.8,63.7,-66.2,61.9,-71.0,62.9,-74.8,64.7,-78.6,64.6,-77.9,65.3,-74.0,65.5,-73.9,66.3,-72.7,67.3,-73.2,68],[67.0,68,67,24.8,66.4,25.4,61.5,25.1,57.4,25.7,56.5,27.1,54.7,26.5,51.5,27.9,50.1,30.1,48.0,30.0,50.8,24.8,51.0,26.0,51.6,25.8,51.8,24.0,54.0,24.1,56.4,26.4,56.8,24.2,59.8,22.5,57.8,20.2,57.7,18.9,55.3,17.2,52.4,16.4,52.2,15.6,48.7,14.0,43.1,14,42.3,17.5,39.1,21.3,38.5,23.7,34.6,28.1,34.9,29.5,33.9,27.6,32.4,29.9,35.7,23.9,35.5,23.1,36.9,22.0,37.5,18.6,39.3,15.9,41.7,14,-16.9,14,-17.6,14.7,-16.3,17.2,-16.3,20.1,-17.1,21.0,-16.0,23.7,-13.1,27.6,-9.6,29.9,-9.3,32.6,-6.9,34.1,-5.9,35.8,-2.2,35.2,1.5,36.6,9.5,37.4,11.1,36.9,10.3,33.8,19.1,30.3,20.1,31.0,20.1,32.2,21.5,32.8,28.9,30.9,31.0,31.6,33.8,31.0,36.0,34.6,36.2,36.7,32.5,36.1,27.6,36.7,26.3,38.2,26.8,39.0,26.2,39.5,27.3,40.4,28.8,40.5,29.2,41.2,31.1,41.1,33.5,42.0,38.3,40.9,41.6,41.5,41.5,42.6,36.7,45.2,39.1,47.3,35.0,46.3,36.3,45.1,33.9,44.4,32.5,45.3,33.3,46.1,30.7,46.6,28.8,44.9,27.7,42.6,28.8,41.1,26.4,40.2,24.9,40.9,23.7,40.7,24.4,40.1,23.9,40.0,22.6,40.3,24.0,37.7,23.1,37.9,23.2,36.4,22.5,36.4,19.4,40.3,19.5,41.7,13.1,45.7,12.3,45.4,12.6,44.1,18.5,40.2,16.9,40.4,16.4,39.8,17.1,38.9,16.1,38.0,15.4,40.0,8.9,44.4,6.5,43.1,3.1,43.1,3.0,41.9,0.8,41.0,-0.3,39.3,0.1,38.7,-2.1,36.7,-4.4,36.7,-5.4,35.9,-6.5,36.9,-8.9,36.9,-8.8,38.3,-9.5,38.7,-8.8,40.8,-9.4,43.0,-8.0,43.7,-1.9,43.4,-1.4,44.0,-1.2,46.0,-4.5,48.0,-4.6,48.7,-1.6,48.6,-1.9,49.8,-1.0,49.3,1.3,50.1,1.6,50.9,3.8,51.6,4.7,53.1,8.1,53.5,8.8,54.0,8.1,55.5,8.5,57.1,10.6,57.7,10.3,56.9,10.9,56.5,9.7,55.5,10.9,54.0,12.5,54.5,14.1,53.8,17.6,54.9,19.7,54.4,21.3,55.2,21.6,57.4,22.5,57.8,24.1,57.0,24.4,58.4,23.3,59.2,29.1,60.0,28.1,60.5,22.9,59.8,21.3,60.7,21.5,63.2,25.4,65.1,23.9,66.0,22.2,65.7,21.2,65.0,21.4,64.4,17.8,62.7,17.1,61.3,18.8,60.1,16.8,58.7,15.9,56.1,12.9,55.4,10.4,59.5,8.4,58.3,5.7,58.6,5.0,62.0,5.9,62.6,10.5,64.5,15.2,68,40.1,68,41.1,66.8,40.0,66.3,33.2,66.6,34.8,65.9,34.9,64.4,37.0,63.8,36.5,64.8,37.2,65.1,39.6,64.5,40.4,64.8,39.8,65.5,42.1,66.5,43.9,66.1,44.5,66.8,43.7,67.4,44.1,68,46.5,68,45.6,67.6,46.3,66.7,50.2,68],[-32.1,68,-34.2,66.7,-39.8,65.5,-41.2,63.5,-42.8,62.7,-42.4,61.9,-43.4,60.1,-44.8,60.0,-49.2,61.4,-53.7,66.1,-53.3,66.8,-54.0,67.2,-53.3,68]];
 const LAKES=[[49.1,41.3,50.4,40.3,49.6,40.2,48.9,38.8,49.2,37.6,50.8,36.9,53.8,37.0,53.9,39.0,53.1,39.3,53.4,40.0,52.7,40.0,52.9,40.9,54.7,41.0,53.7,42.1,52.9,41.9,52.8,41.1,52.5,42.8,51.3,43.1,50.3,44.6,51.3,44.5,51.3,45.2,53.0,45.3,53.0,46.9,51.2,47.0,49.1,46.4,46.7,44.6,47.6,43.7,47.5,43.0],[-83.1,42.1,-78.9,43.0,-81.6,41.6,-83.5,41.7],[-89.6,48.0,-88.2,48.9,-86.6,48.7,-86.0,48.0,-84.9,47.9,-84.8,46.9,-84.4,46.8,-84.6,46.4,-85.1,46.8,-87.0,46.5,-88.3,47.0,-87.9,47.5,-90.4,46.6,-92.0,46.7],[29.8,61.2,30.9,61.8,32.9,60.6,31.1,59.9],[-80.4,45.6,-79.8,44.8,-80.9,44.6,-81.4,45.3,-81.8,43.3,-82.4,43.0,-82.7,44.0,-83.8,43.6,-83.3,45.2,-84.9,45.8,-83.8,46.0,-84.1,46.6],[-85.5,46.0,-84.8,45.9,-86.5,44.1,-86.2,42.4,-87.4,41.6,-87.9,43.2,-87.0,45.3,-88.0,44.7,-87.0,45.7]];
 function drawMap(){
-  const c=$('mapCv'),f=mapFrame(),d=Math.min(2,devicePixelRatio||1);
+  const c=$('mapCv'),P=mapProjection(),{X,Y}=P,d=Math.min(2,devicePixelRatio||1);
   c.width=Math.round(W*d);c.height=Math.round(H*d);
   const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,W,H);
-  const X=lon=>f.x+(lon-LON[0])/(LON[1]-LON[0])*f.w,Y=lat=>f.y+(LAT[1]-lat)/(LAT[1]-LAT[0])*f.h;
+  const pts=CITIES.map(c2=>{const [lat,lon]=PLACES[c2.id];return [X(lon),Y(lat)]});
   // the sea, then the land and the big lakes, inside the grid
-  g.save();g.beginPath();g.rect(f.x,f.y,f.w,f.h);g.clip();
-  g.fillStyle=theme.bg;g.fillRect(f.x,f.y,f.w,f.h);g.globalAlpha=.35;g.fillStyle=theme.water;g.fillRect(f.x,f.y,f.w,f.h);g.globalAlpha=1;
+  g.save();g.beginPath();g.rect(P.x,P.y,P.w,P.h);g.clip();
+  g.fillStyle=theme.bg;g.fillRect(P.x,P.y,P.w,P.h);g.globalAlpha=.35;g.fillStyle=theme.water;g.fillRect(P.x,P.y,P.w,P.h);g.globalAlpha=1;
   const shape=r=>{g.beginPath();for(let k=0;k<r.length;k+=2)g[k?'lineTo':'moveTo'](X(r[k]),Y(r[k+1]));g.closePath()};
   g.lineJoin='round';g.lineWidth=1;
   for(const r of LAND){shape(r);g.fillStyle=theme.surface;g.fill();if(theme.glow){g.globalAlpha=.6;g.fillStyle=theme.line;g.fill()}g.globalAlpha=.45;g.strokeStyle=theme.muted;g.stroke();g.globalAlpha=1}
   for(const r of LAKES){shape(r);g.globalAlpha=.6;g.fillStyle=theme.water;g.fill();g.globalAlpha=1}
   g.restore();
-  g.strokeStyle=theme.line;
-  for(let lon=-90;lon<=60;lon+=10){g.lineWidth=lon%30===0?1.2:.6;g.beginPath();g.moveTo(X(lon),f.y);g.lineTo(X(lon),f.y+f.h);g.stroke()}
-  g.font='500 10px "IBM Plex Mono",ui-monospace,monospace';g.fillStyle=theme.muted;g.textAlign='right';g.textBaseline='bottom';
-  for(let lat=20;lat<=60;lat+=10){g.lineWidth=lat%30===0?1.2:.6;g.beginPath();g.moveTo(f.x,Y(lat));g.lineTo(f.x+f.w,Y(lat));g.stroke();g.fillText(`${lat}°N`,f.x+f.w-4,Y(lat)-4)}
-  g.font='500 11px "IBM Plex Mono",ui-monospace,monospace';g.textAlign='center';g.textBaseline='middle';g.globalAlpha=.6;
-  if('letterSpacing' in g) g.letterSpacing='3px';
-  for(const [lon,lat,name] of [[-72,55,'NORTH AMERICA'],[-42,36,'ATLANTIC'],[22,48,'EUROPE'],[47,32,'ARABIA'],[2,22,'AFRICA']]) g.fillText(name,X(lon),Y(lat));
+  // the grid
+  const hard=[],soft=[];g.strokeStyle=theme.line;
+  for(let lon=Math.ceil(P.lon0/10)*10;lon<=P.lon1;lon+=10){g.lineWidth=lon%30===0?1.2:.6;g.beginPath();g.moveTo(X(lon),P.y);g.lineTo(X(lon),P.y+P.h);g.stroke()}
+  for(let lat=Math.ceil(P.lat0/10)*10;lat<=P.lat1;lat+=10){g.lineWidth=lat%30===0?1.2:.6;g.beginPath();g.moveTo(P.x,Y(lat));g.lineTo(P.x+P.w,Y(lat));g.stroke()}
+  // the names of the land and the sea, smaller on a small map, kept inside the grid
+  const small=P.s<4;
+  g.font=`500 ${small?9:11}px "IBM Plex Mono",ui-monospace,monospace`;g.fillStyle=theme.muted;g.textAlign='center';g.textBaseline='middle';g.globalAlpha=.6;
+  if('letterSpacing' in g) g.letterSpacing=small?'1.5px':'3px';
+  for(const [lon,lat,name] of [[-72,55,'NORTH AMERICA'],[-42,36,'ATLANTIC'],[22,48,'EUROPE'],[47,32,'ARABIA'],[2,22,'AFRICA']]){
+    const tw=g.measureText(name).width,x=Math.max(P.x+tw/2+4,Math.min(P.x+P.w-tw/2-4,X(lon))),y=Y(lat);
+    if(y<P.y+8||y>P.y+P.h-8)continue;
+    g.fillText(name,x,y);soft.push({x:x-tw/2,y:y-7,w:tw,h:14});
+  }
   g.globalAlpha=1;if('letterSpacing' in g) g.letterSpacing='0px';
-  // the leader line from a moved pin to its real place
-  g.strokeStyle=g.fillStyle=theme.muted;g.lineWidth=1;
-  for(const id in pinShift(f)){const r=mapPoint(id,f),p=pinPoint(id,f);g.beginPath();g.moveTo(r[0],r[1]);g.lineTo(p[0],p[1]);g.stroke();g.beginPath();g.arc(r[0],r[1],3,0,Math.PI*2);g.fill()}
+  // each latitude label goes at the right edge, or at the left edge when a city or a name is there
+  g.font='500 10px "IBM Plex Mono",ui-monospace,monospace';g.fillStyle=theme.muted;g.textBaseline='bottom';
+  for(let lat=Math.ceil(P.lat0/10)*10;lat<=P.lat1;lat+=10){
+    const t=`${lat}°N`,tw=g.measureText(t).width,y=Y(lat)-3,clear=b=>pts.every(p=>!overlap(b,dotBox(p,9)))&&soft.every(o=>!overlap(b,o));
+    if(y-12<P.y)continue;
+    for(const x of [P.x+P.w-4-tw,P.x+4]){const b={x:x-2,y:y-12,w:tw+4,h:13};if(clear(b)){g.textAlign='left';g.fillText(t,x,y);hard.push(b);break}}
+  }
+  // the pins: render, measure, then place each one clear of the others
+  $('mapPins').innerHTML=CITIES.map((c2,i)=>{const n=starsFor(c2,bestFor(c2));
+    return `<button class="pin${i===cityI?' cur':''}${bestFor(c2)>0?' played':''}" data-i="${i}" aria-label="${c2.name}, ${c2.year}, ${n} of 3 stars"><span class="dot"><canvas width="40" height="40" aria-hidden="true"></canvas></span><b>${c2.name}</b><span class="yr">${c2.year} · ${n}★</span></button>`}).join('');
+  const els=[...$('mapPins').children];
+  els.forEach((el,i)=>stationIcon(el.querySelector('canvas'),CITIES[i].source,theme.nets[0],false));
+  const spots=placeLabels(P,pts,els.map(el=>({w:el.offsetWidth+8,h:el.offsetHeight})),hard,soft);
+  els.forEach((el,i)=>{el.style.left=spots[i].x.toFixed(1)+'px';el.style.top=spots[i].y.toFixed(1)+'px'});
   // the cable through the cities with a best run, in date order
-  const played=CITIES.filter(c2=>bestFor(c2)>0).map(c2=>pinPoint(c2.id,f));
+  const played=CITIES.map((c2,i)=>bestFor(c2)>0?pts[i]:null).filter(Boolean);
   if(played.length>1){
-    g.strokeStyle=theme.nets[0];g.lineWidth=3.5;g.lineCap='round';g.beginPath();g.moveTo(...played[0]);
+    g.strokeStyle=theme.nets[0];g.lineWidth=small?2.5:3.5;g.lineCap='round';g.beginPath();g.moveTo(...played[0]);
     for(let k=1;k<played.length;k++){const a=played[k-1],b=played[k];g.quadraticCurveTo((a[0]+b[0])/2,Math.min(a[1],b[1])-Math.abs(b[0]-a[0])*.12,b[0],b[1])}
     g.stroke();
   }
-  $('mapPins').innerHTML=CITIES.map((c2,i)=>{const p=pinPoint(c2.id,f),n=starsFor(c2,bestFor(c2));
-    return `<button class="pin${i===cityI?' cur':''}${bestFor(c2)>0?' played':''}" data-i="${i}" style="left:${p[0].toFixed(1)}px;top:${p[1].toFixed(1)}px" aria-label="${c2.name}, ${c2.year}, ${n} of 3 stars"><span class="dot"><canvas width="40" height="40" aria-hidden="true"></canvas></span><b>${c2.name}</b><span class="yr">${c2.year} · ${n}★</span></button>`}).join('');
-  [...$('mapPins').children].forEach((el,i)=>stationIcon(el.querySelector('canvas'),CITIES[i].source,theme.nets[0],false));
+  // each real place, and the leader line to a label that moved away from it
+  g.strokeStyle=g.fillStyle=theme.muted;g.lineWidth=1;
+  spots.forEach((s2,i)=>{const p=pts[i];
+    if(s2.moved){const end=s2.box.y+s2.box.h<p[1]?[s2.x,s2.box.y+s2.box.h-2]:[s2.x,s2.y];g.beginPath();g.moveTo(p[0],p[1]);g.lineTo(...end);g.stroke()}
+    g.beginPath();g.arc(p[0],p[1],3.5,0,Math.PI*2);g.fill()});
 }
 // a new theme redraws the menu's icons and the map in its colors
 const redrawMenu=()=>{if(inMenu())renderMenu()};
