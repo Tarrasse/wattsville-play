@@ -552,8 +552,26 @@ let AC=null,master=null,verb=null,muted=false;
 try{muted=localStorage.getItem('wattsville-muted')==='1'}catch(e){}
 const hz=semi=>261.63*Math.pow(2,semi/12);
 const pent=(deg,oct=0)=>SCALE[((deg%5)+5)%5]+12*(oct+Math.floor(deg/5));
+// iPhone and iPad: Web Audio follows the ring/silent switch, so the game is silent on a phone set to silent.
+// The 'playback' session plays like a video does, through the switch (Safari 16.4+; other browsers lack it).
+try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
+const iOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+// older iOS: a silent <audio> element that loops puts the page in the same playback session
+let hush=null;
+function hushPlay(){
+  if(!iOS||navigator.audioSession||muted||document.hidden) return;
+  if(!hush){
+    const n=4410,b=new DataView(new ArrayBuffer(44+n*2)),s=(o,t)=>{for(let i=0;i<t.length;i++)b.setUint8(o+i,t.charCodeAt(i))};
+    s(0,'RIFF');b.setUint32(4,36+n*2,true);s(8,'WAVEfmt ');b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,1,true);
+    b.setUint32(24,44100,true);b.setUint32(28,88200,true);b.setUint16(32,2,true);b.setUint16(34,16,true);s(36,'data');b.setUint32(40,n*2,true);
+    hush=document.createElement('audio');hush.loop=true;hush.setAttribute('playsinline','');hush.setAttribute('x-webkit-airplay','deny');
+    hush.src=URL.createObjectURL(new Blob([b],{type:'audio/wav'}));
+  }
+  if(hush.paused){const p=hush.play();if(p&&p.catch)p.catch(()=>{})}
+}
 function audioInit(){
-  if(AC){if(AC.state==='suspended')AC.resume();return}
+  // a context made before the first tap starts 'suspended'; iOS sets 'interrupted' after a call or Siri
+  if(AC){if(AC.state!=='running'&&AC.state!=='closed'){const p=AC.resume();if(p&&p.catch)p.catch(()=>{})}return}
   const C=window.AudioContext||window.webkitAudioContext;if(!C) return;
   try{
     AC=new C();
@@ -564,6 +582,19 @@ function audioInit(){
     verb=AC.createConvolver();verb.buffer=ir;const vg=AC.createGain();vg.gain.value=0.35;verb.connect(vg);vg.connect(master);
   }catch(e){AC=null}
 }
+// Browsers start audio only inside a user gesture, and iOS counts touchend and click but not pointerdown.
+// So every tap, click or key (re)starts the context: the first one, and the first one after an interruption.
+function audioUnlock(){
+  audioInit();hushPlay();
+  if(!AC||AC.state==='running'||AC.unlocked) return;
+  // old iOS Safari also needs a sound started inside the gesture: one silent sample does it
+  try{const s=AC.createBufferSource();s.buffer=AC.createBuffer(1,1,22050);s.connect(AC.destination);s.start(0);AC.unlocked=true}catch(e){}
+}
+for(const ev of ['pointerup','touchend','click','keydown']) addEventListener(ev,audioUnlock,{capture:true,passive:true});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){if(hush)hush.pause();return}
+  if(AC&&AC.state!=='running'&&AC.state!=='closed'){const p=AC.resume();if(p&&p.catch)p.catch(()=>{})}
+});
 let silent=false;
 let litSfxAt=-1e9,dimSfxAt=-1e9; // one sound for a group of homes that change together
 function voice(freq,{type='sine',at=0,a=0.005,d=0.4,g=0.15,wet=0.4,lp=6000,glide=0}={}){
@@ -599,6 +630,7 @@ const ICON_SOUND='<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="t
 const ICON_MUTE='<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor"/><path d="M11 6l4 4M15 6l-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 function setMuted(m){
   muted=m;if(master)master.gain.value=m?0:0.7;
+  if(m){if(hush)hush.pause()}else hushPlay();
   try{localStorage.setItem('wattsville-muted',m?'1':'0')}catch(e){}
   const b=$('muteBtn');b.innerHTML=m?ICON_MUTE:ICON_SOUND;b.setAttribute('aria-label',m?'Sound off. Click to turn on':'Sound on. Click to mute');
 }
