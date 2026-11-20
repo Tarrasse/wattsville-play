@@ -2116,11 +2116,14 @@ function screenToWorld(px,py){const nx=px/W*2-1,ny=-(py/H*2-1);_v.set(nx,ny,-1).
 /* materials follow the theme: each remembers its palette key */
 const MREG=[],SHARED={};
 // building walls: paper white by day, a lifted slate at night so the buildings still read
-const colKey=k=>k.startsWith('net')?theme.nets[+k[3]]:k==='glass'?'#fff1c2':k==='wall'?(theme.glow?'#4f5d66':theme.surface):k==='tree'?(theme.glow?'#2c3b35':'#c4d0bd'):theme[k];
+const colKey=k=>k.startsWith('net')?theme.nets[+k[3]]:k==='glass'?'#fff1c2':k==='wall'?(theme.glow?'#4f5d66':theme.surface):k==='tree'?(theme.glow?'#2c3b35':'#c4d0bd'):k==='pipFree'?(theme.glow?'#4a5c63':theme.line):theme[k];
 function IM(k,o={}){const m=new T3.MeshStandardMaterial(Object.assign({roughness:.85,metalness:0,flatShading:true},o));m.color.set(colKey(k));m.userData.k=k;MREG.push(m);return m}
 const SM=k=>SHARED[k]||(SHARED[k]=IM(k));
 const CABLE=[0,1,2,3].map(c=>IM('net'+c,{roughness:.45,flatShading:false,transparent:true}));
-const PIP_OVER=IM('danger',{transparent:true,opacity:.45});
+// Capacity pips: flat colours on a small plate, drawn after everything else and over it (no depth test),
+// so a water wheel, a coal pile or the home in front never hides them. Free pips get a lighter slate at night.
+function PM(k,opacity=1){const m=new T3.MeshBasicMaterial({transparent:true,opacity,depthTest:false,depthWrite:false,fog:false});m.color.set(colKey(k));m.userData.k=k;MREG.push(m);return m}
+const PIP={plate:PM('surface',.92),edge:PM('line'),ink:PM('ink'),free:PM('pipFree'),danger:PM('danger'),over:PM('danger',.45)};
 let groundDirty=true,groundKey='';
 onTheme=()=>{
   for(const m of MREG)m.color.set(colKey(m.userData.k));
@@ -2479,17 +2482,22 @@ function orientWheel(v,p){
   // with no water next to it (the tutorial), the wheel stays beside the mill house
   if(side) v.m.userData.wheel.position.set(0,v.wheelY,.72); else v.m.userData.wheel.position.set(.22,.31,.3);
   v.axle.visible=!!side;
-  // keep the capacity pips on dry land: if the wheel is in front, they go behind the plant
-  v.pg.position.z=side&&side[1]===1?-1.24:0;
   v.spin=1;
   if(side&&!tut){const th=side[2],f=flowAt(p.x+.5+side[0]*.8,p.y+.5+side[1]*.8),along=f.x*Math.cos(th)-f.z*Math.sin(th);v.spin=along<0?-1:1}
 }
 // which water squares next to a mill have a bridge: when it changes, the wheel turns again
 const wheelKey=p=>WHEEL_SIDES.reduce((a,[dx,dy],k)=>{const nx=p.x+dx,ny=p.y+dy;return a|(nx>=0&&ny>=0&&nx<COLS&&ny<ROWS&&bridge[idx(nx,ny)]?1<<k:0)},0);
+// The pips lie on the front edge of the plant's own lot, the edge nearest the camera, on a plate that fits
+// inside the lot: they never reach a neighbour's square, and they draw over the models (see PIP).
+const PIP_Z=.33;
 function updatePips(v,p){
   const n=p.cap+(p.extra||0),key=n+':'+p.cap+':'+p.load+':'+p.over;if(key===v.pk)return;v.pk=key;emptyGroup(v.pg);
-  const w=Math.min(.14,.95/n),gap=w*.35,tot=n*w+(n-1)*gap,geo=G('pip'+w.toFixed(3),()=>box(w,.05,.09));
-  for(let k=0;k<n;k++){const m=k>=p.cap?PIP_OVER:k<p.load?(p.over?SM('danger'):SM('ink')):SM('line');mesh(geo,m,-tot/2+w/2+k*(w+gap),.025,.62,v.pg,false)}
+  if(!n)return;
+  const w=Math.min(.14,.8/(n*1.35-.35)),gap=w*.35,tot=n*w+(n-1)*gap,geo=G('pip'+w.toFixed(3),()=>box(w,.02,.12));
+  const add=(geo,m,x,y,order)=>{const o=mesh(geo,m,x,y,PIP_Z,v.pg,false);o.receiveShadow=false;o.renderOrder=order};
+  add(G('pipEdge'+tot.toFixed(3),()=>box(tot+.09,.01,.21)),PIP.edge,0,.045,30);
+  add(G('pipPlate'+tot.toFixed(3),()=>box(tot+.07,.01,.19)),PIP.plate,0,.05,31);
+  for(let k=0;k<n;k++)add(geo,k>=p.cap?PIP.over:k<p.load?(p.over?PIP.danger:PIP.ink):PIP.free,-tot/2+w/2+k*(w+gap),.06,32);
 }
 function houseView(h){
   const g=new T3.Group();g.position.set(h.x+.5,0,h.y+.5);world.add(g);
