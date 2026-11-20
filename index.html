@@ -2367,16 +2367,16 @@ const cableG=new T3.Group();world.add(cableG);
 let cSig='',cData=[],pulseCurves=[],lastEnerg=null;
 const pulseM=new T3.InstancedMesh(new T3.SphereGeometry(.055,8,6),new T3.MeshBasicMaterial({color:0xffffff}),4000);pulseM.count=0;pulseM.frustumCulled=false;world.add(pulseM);
 // at a crossover the upper cable jumps the lower one in a high arch (an upside-down U): it lifts from about
-// one square before the crossover, peaks over it and comes down one square after; the lower cable dips a little
+// one square before the crossover, peaks over it and comes down one square after; the lower cable runs straight
+// through at its usual height, clear above the flat pad, so it stays in sight under the arch
 const isUpper=(i,col)=>cross[i]&&wires[i].length===2&&col===Math.max(...wires[i]);
-const ARCH={h:.5,r:1.05,dip:.05,dipR:.55};
+const ARCH={h:.5,r:1.05};
 const hgt=(i,col)=>cellH[i]+(water[i]?.05:.11);
 const archAt=d=>d>=ARCH.r?0:ARCH.h*Math.cos(Math.PI/2*d/ARCH.r)**2;
 function lift(pts,col){
-  const xs=[];for(let i=0;i<N;i++)if(cross[i]&&wires[i].length===2&&wires[i].includes(col))xs.push([cx(i)+.5,cy(i)+.5,isUpper(i,col)]);
+  const xs=[];for(let i=0;i<N;i++)if(isUpper(i,col))xs.push([cx(i)+.5,cy(i)+.5]);
   if(!xs.length)return pts;
-  return pts.map(p=>{let y=p[1];for(const [x,z,up] of xs){const d=Math.hypot(p[0]-x,p[2]-z);
-    if(up)y+=archAt(d);else if(d<ARCH.dipR)y-=ARCH.dip*Math.cos(Math.PI/2*d/ARCH.dipR)**2}
+  return pts.map(p=>{let y=p[1];for(const [x,z] of xs)y+=archAt(Math.hypot(p[0]-x,p[2]-z));
     return [p[0],y,p[2],p[3]]});
 }
 const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];
@@ -2393,6 +2393,9 @@ function smooth(pts){
     const end=k<pts.length-2?mid(pts[k],pts[k+1]):pts[k+1];
     for(let s=1;s<=5;s++){const t=s/5,u=1-t;out.push([u*u*start[0]+2*u*t*c[0]+t*t*end[0],u*u*start[1]+2*u*t*c[1]+t*t*end[1],u*u*start[2]+2*u*t*c[2]+t*t*end[2]])}
     start=end}
+  // a crossover next to the end of the stretch (a home, a plant, a junction): run on from it to the last square
+  const last=pts[pts.length-1];
+  if(start!==last)for(let s=1;s<=3;s++){const t=s/3;out.push([start[0]+(last[0]-start[0])*t,start[1]+(last[1]-start[1])*t,start[2]+(last[2]-start[2])*t])}
   return out;
 }
 function curveOf(pts){const v=[];for(const p of pts){const q=new T3.Vector3(p[0],p[1],p[2]);if(!v.length||v[v.length-1].distanceTo(q)>1e-3)v.push(q)}return v.length>1?new T3.CatmullRomCurve3(v,false,'catmullrom',.5):null}
@@ -2429,10 +2432,12 @@ function buildCables(){
     for(let k=0;k<4;k++)mesh(G('plank',()=>box(.18,.04,.86)),SM('plank'),-.3+k*.2,.05,0,g);
     for(const z of [-.42,.42])mesh(G('rail',()=>box(1,.05,.05)),SM('plank'),0,.11,z,g);
   }
-  // crossovers: a pad, and two insulator posts that hold the arch on either side of the lower cable
+  // crossovers: a flat pad with a light rim (it reads on the ground in both themes and stays under the lower
+  // cable), and two insulator posts that hold the arch on either side of the lower cable
   for(let i=0;i<N;i++)if(cross[i]){
     const x=cx(i)+.5,z=cy(i)+.5,h=cellH[i];
-    mesh(G('xpad',()=>cyl(.3,.33,.05,20)),SM('surface'),x,h+.025,z,cableG,false);
+    mesh(G('xrim',()=>cyl(.34,.34,.016,24)),SM('muted'),x,h+.008,z,cableG,false);
+    mesh(G('xpad',()=>cyl(.29,.29,.02,24)),SM('line'),x,h+.01,z,cableG,false);
     const up=Math.max(...wires[i]),L=j=>j>=0&&j<N&&links.has(lk(i,j,up));
     const horiz=cx(i)>0&&cx(i)<COLS-1&&L(i-1)&&L(i+1),vert=L(i-COLS)&&L(i+COLS);
     if(!horiz&&!vert)continue; // the upper cable turns here: the arch stands alone
