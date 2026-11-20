@@ -135,59 +135,20 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .legend{display:flex}
 .bar .iconbtn{background:transparent;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;border-radius:8px;color:var(--ink)}
 .bar .iconbtn:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
-/* The bottom controls. Two parts: the Cable/Erase toggle (a small pill) and the plant hotbar (a shelf with one
-   slot for each network color of the city). On a tall or wide screen the pill sits above the shelf, at its left
-   edge; on a short landscape phone it sits at the left of the same row. The shelf is always at the bottom centre. */
-:root{--slot-w:74px;--slot-h:62px;--pill-h:34px;--dock-gap:16px;--tray-b:max(16px,calc(env(safe-area-inset-bottom,0px) + 8px));
-  --dock-h:calc(var(--slot-h) + 12px + var(--dock-gap) + var(--pill-h))}
-@media (min-width:700px) and (min-height:501px){:root{--slot-w:92px;--slot-h:72px;--pill-h:36px}}
-@media (orientation:landscape) and (max-height:500px){:root{--slot-w:66px;--slot-h:56px;--dock-h:calc(var(--slot-h) + 12px)}}
-nav.tray{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:var(--tray-b)}
-.tray>.dock{pointer-events:none}
-.dock{display:flex;flex-direction:column;align-items:flex-start;gap:var(--dock-gap);width:max-content;margin:0 auto}
-.dock>*{pointer-events:auto}
-@media (orientation:landscape) and (max-height:500px){
-  .dock{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;width:auto;margin:0;flex:1 1 auto}
-  .dock .cabsw{justify-self:start}
-}
-.shelf,.cabsw{background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.1);box-sizing:border-box}
-/* The Cable/Erase toggle: a switch for Erase. Both sides show their label; the active side gets a tint and an outline. */
-.cabsw{display:flex;gap:2px;height:var(--pill-h);padding:3px;border-radius:999px;font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink)}
-.cabsw .seg{display:flex;align-items:center;gap:5px;padding:0 11px 0 8px;border-radius:999px;opacity:.55;transition:background-color .15s,box-shadow .15s,opacity .15s}
-.cabsw .seg .ti{width:18px;height:18px;flex:none}
-.cabsw .seg .n{opacity:.6;font-size:10.5px}
-.cabsw .seg[data-m="draw"]{--tc:var(--net-a)}.cabsw .seg[data-m="erase"]{--tc:var(--danger)}
-.cabsw .seg.on{opacity:1;background:color-mix(in srgb,var(--tc) 24%,var(--surface));box-shadow:inset 0 0 0 2px var(--tc)}
-.cabsw:hover .seg:not(.on){opacity:.8}
-.cabsw:focus-visible,.slot:focus-visible{outline:2px solid var(--net-d);outline-offset:2px}
-/* The plant hotbar: a slot shows the city's plant on a base of its color, the kind of customer, and the price. */
-.shelf{display:flex;gap:5px;padding:5px;border-radius:14px}
-.slot{position:relative;flex:none;width:var(--slot-w);height:var(--slot-h);border:0;border-radius:11px;padding:0;margin:0;display:grid;justify-items:center;align-content:center;gap:2px;color:var(--ink);
-  background:color-mix(in srgb,var(--tc) 9%,transparent);box-shadow:inset 0 -3px 0 var(--tc);
-  touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:transform .12s ease,box-shadow .12s,background-color .12s}
-.slot:hover{background:color-mix(in srgb,var(--tc) 16%,transparent)}
-.slot[aria-pressed="true"]{background:color-mix(in srgb,var(--tc) 22%,var(--surface));box-shadow:inset 0 0 0 2.5px var(--tc)}
-.slot .pi{position:relative;width:calc(var(--slot-h)*.36);height:calc(var(--slot-h)*.36)}
-.slot .pi canvas{display:block;width:100%;height:100%}
-.slot .pi .badge{position:absolute;right:-6px;bottom:-4px;width:14px;height:14px;border-radius:50%;background:var(--surface);box-shadow:0 0 0 1px var(--line);display:grid;place-items:center;color:var(--tc)}
-.slot .pi .badge svg{width:9px;height:9px}
-.slot .tname{font-family:var(--font-body);font-size:10px;font-weight:600;line-height:1.1;white-space:nowrap}
-.slot .price{font-family:var(--font-mono);font-size:10px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums}
-@media (min-width:700px) and (min-height:501px){.slot .tname,.slot .price{font-size:11px}}
-.slot .key{position:absolute;top:4px;left:6px;font-family:var(--font-mono);font-size:9.5px;color:var(--muted)}
-@media (hover:none){.slot .key{display:none}}
-/* short of power: a label with the count of missing pips, so the warning does not rest on color alone */
-.slot .short{position:absolute;top:-7px;left:50%;transform:translateX(-50%);z-index:2;font-family:var(--font-body);font-size:10px;font-weight:600;line-height:15px;color:var(--bg);background:var(--danger);border-radius:5px;padding:0 4px;white-space:nowrap;pointer-events:none}
-.slot.poor .pi,.slot.poor .tname{filter:grayscale(1);opacity:.4}
-.slot.poor .price{color:var(--danger);font-weight:600}
-/* the slot that a drag lifts; the gap above the shelf keeps its "short" label clear of the toggle */
-.slot.lift{transform:translateY(-8px) scale(1.06);z-index:3;background:color-mix(in srgb,var(--tc) 20%,var(--surface));box-shadow:0 14px 26px rgba(0,0,0,.22),inset 0 0 0 2.5px var(--tc)}
-.slot.lock{border:1.5px dashed var(--line);background:none;box-shadow:none;color:var(--muted);font-family:var(--font-body);font-size:10px;cursor:default;box-sizing:border-box;gap:3px}
-.slot .lk{display:grid;justify-items:center;gap:3px}
-.slot.lock svg{width:14px;height:14px}
-@media (prefers-reduced-motion: reduce){.slot,.cabsw .seg{transition:none}}
+.dock{display:flex;gap:2px;padding:4px;background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.1)}
+/* Tools: icon, name and price. The size grows with the screen, within limits. */
+.dock{--tool:clamp(60px,4.8vmin,78px)}
+.dock .tool{display:grid;grid-template-rows:auto auto auto;justify-items:center;align-content:center;gap:2px;width:var(--tool);height:var(--tool);padding:0;border:0;border-radius:12px;background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;min-width:0;--tc:var(--plant-color,var(--ink))}
+.dock .tool .ti{width:calc(var(--tool)*.4);height:calc(var(--tool)*.4)}
+.dock .tool .nm{font-family:var(--font-mono);font-size:calc(var(--tool)*.155);font-weight:500;letter-spacing:.02em;line-height:1.1;color:var(--ink)}
+.dock .tool .n{font-size:calc(var(--tool)*.15);line-height:1.1;opacity:.7;color:var(--ink);min-height:1.1em}
+.dock .tool:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.dock .tool[aria-pressed="true"]{background:color-mix(in srgb,var(--tc) 24%,var(--surface));box-shadow:inset 0 0 0 2.5px var(--tc);color:var(--ink)}
+.dock .tool.poor .ti,.dock .tool.poor .nm{filter:grayscale(1);opacity:.4}
+/* The Plant tool can be dragged onto the map: no page scroll or zoom may take the touch. */
+#tPlant{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 body.pdragging,body.pdragging *{cursor:grabbing!important}
-.tray .hint{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:var(--tray-b);max-width:calc(50vw - 250px);margin:0;text-align:right;line-height:1.45}
+.dock .tool.poor .n{color:var(--danger);opacity:1;font-weight:600}
 .legend .lg{display:flex;align-items:center;gap:4px}
 .legend .lg svg{width:13px;height:13px;color:inherit}
 .legend .lg b{font-weight:500;color:var(--ink)}
@@ -200,13 +161,14 @@ body.pdragging,body.pdragging *{cursor:grabbing!important}
   .bar{flex-wrap:nowrap}
   .chip{padding:0 8px;font-size:12px;gap:5px;height:32px}
   .money{font-size:19px}.hud-row{gap:10px;font-size:11px}
+  .dock{--tool:58px;gap:1px}
   .weekchip{font-size:10px;min-width:0}
   .ctrls{gap:4px}
   .bar .iconbtn{width:32px;height:32px}.bar .speed{padding:0 7px}
   .tray > .tool{padding:0 9px;font-size:12px;height:32px}
 }
 .brand .sub{font-family:var(--font-body);font-weight:500;font-size:12px;letter-spacing:0;text-transform:none;color:var(--muted);padding-left:4px}
-.coach{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--tray-b) + var(--dock-h) + 12px);z-index:6;width:min(440px,calc(100% - 24px));box-sizing:border-box;padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px;border-radius:14px}
+.coach{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(clamp(60px,4.8vmin,78px) + 26px + env(safe-area-inset-bottom,0px));z-index:6;width:min(440px,calc(100% - 24px));box-sizing:border-box;padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px;border-radius:14px}
 .coach p{margin:0;font-size:14.5px;line-height:1.45;color:var(--ink);text-wrap:pretty}
 .coach p.in{animation:coachIn .45s ease-out}
 @keyframes coachIn{from{opacity:0;transform:translateY(4px)}}
@@ -228,10 +190,8 @@ body.pdragging,body.pdragging *{cursor:grabbing!important}
 .titlecard.play h1{animation:titleGlow 3.4s ease-in-out forwards}
 @keyframes titleSeq{0%{opacity:0}22%{opacity:1}72%{opacity:1}100%{opacity:0}}
 @keyframes titleGlow{0%{letter-spacing:.2em;filter:blur(3px)}30%{letter-spacing:.1em;filter:blur(0)}100%{letter-spacing:.12em}}
-/* during the tutorial only the Cable/Erase switch matters: hide the score chips and the other tools */
-.tutorial .hud,.tutorial .tray .static,.tutorial .hint,.tutorial .slot.lock{display:none}
-/* the tutorial shows the toggle and the plant shelf only from the step that talks about them; they keep their place */
-.tutorial:not(.tut-erase) #tCable,.tutorial:not(.tut-plants) .shelf{visibility:hidden}
+/* during the tutorial only cable and erase matter: hide the score chips and the other tools */
+.tutorial .hud,.tutorial #tPlant,.tutorial .tray .static,.tutorial .hint{display:none}
 .tutorial #nCable{visibility:hidden}
 .stars{display:inline-block;color:var(--net-a);letter-spacing:.06em;font-size:11px}
 .stars.pop{animation:starPop .7s cubic-bezier(.2,.9,.3,1.4)}
@@ -272,7 +232,7 @@ body.pdragging,body.pdragging *{cursor:grabbing!important}
 .overlay:not([hidden]){animation:fadeIn .35s ease-out}
 .overlay:not([hidden]) .card{animation:cardIn .45s cubic-bezier(.2,.9,.3,1.25)}
 .toast{pointer-events:auto;cursor:pointer}
-.pcard{position:absolute;left:50%;bottom:calc(var(--tray-b) + var(--dock-h) + 12px);z-index:6;transform:translateX(-50%);box-sizing:border-box;width:min(380px,calc(100vw - 32px));
+.pcard{position:absolute;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));z-index:6;transform:translateX(-50%);box-sizing:border-box;width:min(380px,calc(100vw - 32px));
   background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
 .pcard:not([hidden]){animation:toastIn .3s cubic-bezier(.2,.9,.3,1.25)}
 .pcard p{margin:6px 0 0;font-family:var(--font-mono);font-weight:500;font-size:12px;font-variant-numeric:tabular-nums}
@@ -462,10 +422,10 @@ body.in-menu .notices{display:none}
       <div class="card helpcard" role="dialog" aria-labelledby="helpTitle">
         <h2 id="helpTitle">How to play</h2>
         <ul>
-          <li>Each city makes its power one way: water, coal, wind, nuclear or gas. Each kind of plant has a rule for where it can stand. The bar at the bottom has one plant for each color. Drag a plant onto the map to build it: the square shows green where it can stand, red where it cannot. Or tap the plant (or press 1 to 4), then tap a lit square. A locked plant shows the week its customers arrive.</li>
+          <li>Each city makes its power one way: water, coal, wind, nuclear or gas. Each kind of plant has a rule for where it can stand. Drag the Plant tool onto the map to build: the square shows green where a plant can stand, red where it cannot. Or tap the tool, then tap a lit square.</li>
           <li>You run the power company. Every lit home pays you $0.25 a second; light every home for ×1.25.</li>
-          <li>Drag from a plant, home or cable to lay cable ($1 a square, $8 more over water). To remove cable, switch the toggle above the plants to Erase (or press E, or drag with the right mouse button) and drag over the cable. Erasing refunds it. After you build a plant, the toggle goes back to Cable.</li>
-          <li>Each plant powers as many homes as its pips. Plants cost money: when a color shows <b>short</b> (in the HUD and on its plant in the bar, with the number of missing pips), build or upgrade one. Too many homes on one network causes a brownout: they all dim and pay less. Route homes to plants with free pips, join same-color plants, or buy upgrades and new plants.</li>
+          <li>Drag from a plant, home or cable to lay cable ($1 a square, $8 more over water). Erasing refunds it.</li>
+          <li>Each plant powers as many homes as its pips. Plants cost money: when a color shows <b>short</b>, build or upgrade one. Too many homes on one network causes a brownout: they all dim and pay less. Route homes to plants with free pips, join same-color plants, or buy upgrades and new plants.</li>
           <li>Each color is a voltage for one kind of customer: amber 220 V for homes, blue 380 V for factories, magenta 600 V DC for tram depots, green DC for charging stations. Factories and depots use 2 pips but pay more.</li>
           <li>Where two cables of different colors cross, the game adds a crossover for you ($10). Erase the cable there and you get it back.</li>
           <li>Hold a plant for a moment to upgrade it: +2 pips of capacity. Tap a plant to see what it costs and earns, and to upgrade or sell it (you get half of its price back).</li>
@@ -529,10 +489,10 @@ body.in-menu .notices{display:none}
 
 <nav class="tray" aria-label="Tools">
   <div class="dock">
-  <button class="cabsw" id="tCable" role="switch" aria-checked="false" aria-label="Erase cable" title="Erase (E): when on, a drag removes cable and gives the money back. When off, a drag lays cable."><span class="seg on" data-m="draw"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17C7 17 7 7 12 7S17 17 21 17" fill="none" stroke="var(--tc)" stroke-width="1.9" stroke-linecap="round"/></svg><span class="nm">Cable</span><span class="n" id="nCable">$1</span></span><span class="seg" data-m="erase"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h5.5M15.5 12H21" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.8 8.8l4.4 6.4M14.2 8.8l-4.4 6.4" stroke="var(--tc)" stroke-width="2" stroke-linecap="round"/></svg><span class="nm">Erase</span><span class="n">E</span></span></button>
-  <div class="shelf" id="hotbar" role="group" aria-label="Power plants: drag one onto the map"></div>
+  <button class="tool" id="tErase" style="--tc:var(--danger)" aria-pressed="false" aria-label="Erase" title="Erase (E): turn on to remove cable and get the money back; turn off to draw cable again"><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h5.5M15.5 12H21" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M9.8 8.8l4.4 6.4M14.2 8.8l-4.4 6.4" stroke="var(--tc)" stroke-width="1.9" stroke-linecap="round"/></svg><span class="nm">Erase</span><span class="n">E</span></button>
+  <button class="tool" id="tPlant" aria-pressed="false" aria-label="Build a plant" title="Build a plant: drag it onto the map, or tap (P) and then tap a lit square. Tap again to change its color."><svg class="ti" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5v3M12 18.5v3" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="var(--tc)" stroke-width="1.9"/><path d="M8.7 12c1.1-2.2 2.2-2.2 3.3 0s2.2 2.2 3.3 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="nm">Plant</span><span class="n" id="nPlant">$60</span></button>
   </div>
-  <span class="hint">Drag a plant onto the map · 1–4 pick a plant · E erase, or right-drag · Double-click to zoom · Tap a plant to inspect, hold to upgrade · Space pause · S speed · M sound</span>
+  <span class="hint">Double-click to zoom · Right-drag to erase · Tap a plant to inspect, hold to upgrade · Space pause · S speed · M sound · P plant</span>
 </nav>
 
 <script src="vendor/three.min.js"></script>
@@ -783,10 +743,10 @@ function upkeep(){
    representative labels (they varied by country and era). Big customers use more plant capacity
    (pips) but pay more. weight = how often each type appears once it is in play. */
 const TYPES=[
-  {name:'Homes',tag:'Homes',one:'home',volt:'220 V',demand:1,pay:1,weight:6,plantCap:3,maxExtra:1,buys:['electric fan','radio','electric iron','refrigerator','washing machine','television'],fact:'Homes take low-voltage power for their lamps.'},
-  {name:'Factories',tag:'Factories',one:'factory',volt:'380 V three-phase',demand:2,pay:2.2,weight:3,plantCap:4,maxExtra:2,buys:['new motor line','electric furnace','night shift'],fact:'Three-phase power drives the motors in workshops and mills.'},
-  {name:'Tram depots',tag:'Trams',one:'tram depot',volt:'600 V DC',demand:2,pay:2.1,weight:2,plantCap:4,maxExtra:1,buys:['longer trams','a new route'],fact:'Siemens ran the first electric tram in Lichterfelde, Berlin, on 16 May 1881.'},
-  {name:'Charging stations',tag:'Charging',one:'charging station',volt:'DC',demand:1,pay:1.3,weight:2,plantCap:3,maxExtra:1,buys:['a second charger','faster charging'],fact:'New York\u2019s Electrobat cabs (1897) swapped batteries at a station on Broadway.'}
+  {name:'Homes',one:'home',volt:'220 V',demand:1,pay:1,weight:6,plantCap:3,maxExtra:1,buys:['electric fan','radio','electric iron','refrigerator','washing machine','television'],fact:'Homes take low-voltage power for their lamps.'},
+  {name:'Factories',one:'factory',volt:'380 V three-phase',demand:2,pay:2.2,weight:3,plantCap:4,maxExtra:2,buys:['new motor line','electric furnace','night shift'],fact:'Three-phase power drives the motors in workshops and mills.'},
+  {name:'Tram depots',one:'tram depot',volt:'600 V DC',demand:2,pay:2.1,weight:2,plantCap:4,maxExtra:1,buys:['longer trams','a new route'],fact:'Siemens ran the first electric tram in Lichterfelde, Berlin, on 16 May 1881.'},
+  {name:'Charging stations',one:'charging station',volt:'DC',demand:1,pay:1.3,weight:2,plantCap:3,maxExtra:1,buys:['a second charger','faster charging'],fact:'New York\u2019s Electrobat cabs (1897) swapped batteries at a station on Broadway.'}
 ];
 // a customer's demand grows as it buys appliances (h.extra); pay grows with it
 const dmd=h=>TYPES[h.color].demand+(h.extra||0);
@@ -904,7 +864,7 @@ function addEntity(kind,color,x,y){
 function underControls(x,y){
   if(!view.s) return false;
   const [sx,sy]=worldToScreen(x+.5,y+.5,.3),m=view.s*0.6;
-  for(const el of document.querySelectorAll('.hud,.bar .iconbtn,.dock>*')){
+  for(const el of document.querySelectorAll('.hud,.bar .iconbtn,.dock')){
     const r=el.getBoundingClientRect();
     if(r.width&&sx>r.left-m&&sx<r.right+m&&sy>r.top-m&&sy<r.bottom+m) return true;
   }
@@ -1147,10 +1107,10 @@ function updateView(dt){
   for(const key of ['x0','y0','x1','y1']) c[key]+=(b[key]-c[key])*k;
   const m=0.8,bw=c.x1-c.x0+1+m*2,bh=c.y1-c.y0+1+m*2;
   const side=tut&&coachSide();
-  const toolH=Math.max(60,H-dockTop());
-  const tall=!tut&&H>W*1.15, bar=document.querySelector('.bar');
+  const toolH=$('tErase').offsetHeight||60;
+  const tall=!tut&&H>W*1.15, bar=document.querySelector('.bar'), dock=document.querySelector('.dock');
   const topI=tut?52:tall?Math.max(0,bar.getBoundingClientRect().bottom-parseFloat(getComputedStyle(bar).paddingBottom)+4):0;
-  const botI=tut?(side?toolH+20:$('coach').offsetHeight+toolH+30):tall?Math.max(0,H-dockTop()+6):0, rightI=side?$('coach').offsetWidth+24:0;
+  const botI=tut?(side?toolH+20:$('coach').offsetHeight+toolH+38):tall?Math.max(0,H-dock.getBoundingClientRect().top+6):0, rightI=side?$('coach').offsetWidth+24:0;
   let ah=Math.max(120,H-topI-botI),aw=Math.max(120,W-rightI),ax=0,ay=topI;
   if(!$('intro').hidden){
     const m=menuArea(),p=menuMix(performance.now());
@@ -1200,7 +1160,7 @@ cv.addEventListener('dblclick',e=>{if(lastPtr!=='mouse')return;const r=cv.getBou
 function toCell(px,py){
   if(!view.s) return -1;
   const w=screenToWorld(px,py),x=Math.floor(w.x),y=Math.floor(w.z);
-  if(!(x>=0&&y>=0&&x<COLS&&y<ROWS)) return -1;
+  if(x<0||y<0||x>=COLS||y>=ROWS) return -1;
   if(!occ[idx(x,y)]) for(let dy=1;dy<=2&&y+dy<ROWS;dy++){const e=occ[idx(x,y+dy)];if(e){const [ex,ey]=worldToScreen(x+.5,y+dy+.5,.45);if(Math.hypot(ex-px,ey-py)<view.s*.42) return idx(x,y+dy)}}
   return idx(x,y);
 }
@@ -1276,84 +1236,23 @@ const endDrag=()=>{
 cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
 cv.addEventListener('pointerleave',()=>{hover=-1});
 
-// The top of the bottom controls (the toggle and the plant shelf), in page pixels. The camera frames the map above it.
-function dockTop(){
-  let top=innerHeight;
-  for(const el of document.querySelectorAll('.dock>*')){const r=el.getBoundingClientRect();if(r.height)top=Math.min(top,r.top)}
-  return top;
-}
 function setMode(m){
   st.mode=m;
-  // drawing cable is the default: the toggle switches Erase on, and a plant mode returns to cable after one plant
-  const er=m==='erase';$('tCable').setAttribute('aria-checked',er);
-  for(const el of $('tCable').querySelectorAll('.seg')) el.classList.toggle('on',(el.dataset.m==='erase')===er);
-  renderHotbar();
+  // drawing cable is the default: Erase is a toggle on top of it, and Plant returns to cable after one plant
+  for(const [id,k] of [['tErase','erase'],['tPlant','plant']]) $(id).setAttribute('aria-pressed',m===k);
 }
-$('tCable').onclick=()=>setMode(st.mode==='erase'?'draw':'erase');
-
-/* ---------- the plant hotbar ----------
-   One slot for each network color of the city, at most city().maxColors. A slot shows the city's plant on a base
-   of its color, the kind of customer it serves, and the price. A color that has not arrived yet shows a locked slot
-   with the week it arrives. Only the next locked color shows, so early in a run the bar stays short.
-   A drag from a slot builds a plant of that color. A tap selects that color: then a tap on a square builds.
-   Keys 1 to 4 do the same as a tap. */
-const NEW_COLOR_WEEKS=[2,3,5];
-const ICON_LOCK='<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="2.5" y="6" width="9" height="6.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 6V4.5a2.5 2.5 0 0 1 5 0V6" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
-// the slots that show: the colors in play, then the next color of the city, locked
-const hotbarSlots=()=>{const n=Math.min(city().maxColors,st.colors+1),out=[];for(let c=0;c<n;c++)out.push(c);return out};
-const missingPips=c=>Math.max(0,demOf(c)-capOf(c));
-// the four slots are made once, at the first draw (the names and icons they use are defined further down)
-const slotEls=[];
-function makeSlots(){
- for(let c=0;c<4;c++){
-  const b=document.createElement('button');b.className='slot';b.dataset.c=c;b.style.setProperty('--tc',`var(${NET_VARS[c]})`);
-  b.innerHTML=`<span class="key" aria-hidden="true">${c+1}</span><span class="pi" aria-hidden="true"><canvas width="48" height="48"></canvas><span class="badge">${TYPE_ICONS[c]}</span></span><span class="tname" aria-hidden="true">${TYPES[c].tag}</span><span class="price" aria-hidden="true"></span><span class="short" hidden></span><span class="lk" aria-hidden="true" hidden>${ICON_LOCK}<span></span></span>`;
-  $('hotbar').append(b);slotEls.push(b);
- }
-}
-let slotIconKey='';
-function renderHotbar(){
-  if(previewing||!st) return;
-  if(!slotEls.length) makeSlots();
-  const show=hotbarSlots(),cost=plantCost(),poor=st.money<cost,price=fmt$(cost);
-  // the plant icons follow the city's power source and the theme
-  const key=city().source+'|'+(theme.nets||[]).join();
-  if(key!==slotIconKey&&theme.nets){slotIconKey=key;slotEls.forEach((b,c)=>stationIcon(b.querySelector('canvas'),city().source,theme.nets[c],false))}
-  slotEls.forEach((b,c)=>{
-    const on=show.includes(c),locked=c>=st.colors,miss=locked?0:missingPips(c),sel=st.mode==='plant'&&st.plantColor===c&&!locked;
-    b.hidden=!on;if(!on) return;
-    const T=TYPES[c],wk=NEW_COLOR_WEEKS[c-1];
-    b.classList.toggle('lock',locked);b.classList.toggle('poor',!locked&&poor);
-    b.disabled=locked;
-    for(const k of ['.key','.pi','.tname','.price']) b.querySelector(k).hidden=locked;
-    b.querySelector('.lk').hidden=!locked;
-    if(locked){b.querySelector('.lk span').textContent=`Week ${wk}`;b.removeAttribute('aria-pressed');
-      b.setAttribute('aria-label',`Locked. A new kind of customer arrives in week ${wk}`);b.title=`Opens in week ${wk}`;return}
-    b.querySelector('.price').textContent=price;
-    const sh=b.querySelector('.short');sh.hidden=!miss;sh.textContent=miss?`short ${miss}`:'';
-    b.setAttribute('aria-pressed',sel);
-    b.setAttribute('aria-label',`${T.name} plant, ${COLOR_NAMES[c]}, ${price}${poor?', not enough money':''}${miss?`, short of power by ${miss} pip${miss>1?'s':''}`:''}`);
-    b.title=`${T.name} plant (${c+1}): drag it onto the map, or tap it and then tap a lit square`;
-  });
-}
-// a tap on a slot or a key 1 to 4: plant mode for that color, or back to cable when it is on already
-function pickPlant(c){
-  if(tut||c>=st.colors||st.over) return;
-  if(st.mode==='plant'&&st.plantColor===c){setMode('draw');updateHud();return}
-  st.plantColor=c;setMode('plant');announcePlant();updateHud();
-}
-// the first time in a run, a tip gives the city's building rule; after that a short notice
-function announcePlant(){
+$('tErase').onclick=()=>setMode(st.mode==='erase'?'draw':'erase');
+$('tPlant').onclick=()=>{
+  // a mouse drag from the tool can end with a click too: the drag already did the work
+  if(performance.now()-plantDraggedAt<500) return;
+  // first tap picks the color that needs it most; tapping again cycles through the colors in play
+  if(st.mode==='plant'){st.plantColor=(st.plantColor+1)%st.colors}else{st.plantColor=neediestColor();setMode('plant')}
+  // the first time in a run, a tip gives the city's building rule; after that a short notice
   const S=SRC(),c=st.plantColor,T=TYPES[c],price=fmt$(plantCost()),nm=COLOR_NAMES[c];
-  if(!tipOnce('rule',`${S.name}: ${S.rule} The lit squares show where you can build ${/^[aeiou]/.test(nm)?'an':'a'} ${nm} plant for ${T.name.toLowerCase()} (${price}). You can also drag a plant from the bar onto the map.`))
-    notice(`${nm[0].toUpperCase()+nm.slice(1)} plant for ${T.name.toLowerCase()}, ${T.volt} · ${price}`);
-}
-// the P key, as before: the neediest color first, then each press cycles through the colors in play
-function plantKey(){
-  if(tut||st.over) return;
-  st.plantColor=st.mode==='plant'?(st.plantColor+1)%st.colors:neediestColor();
-  setMode('plant');announcePlant();updateHud();
-}
+  if(!tipOnce('rule',`${S.name}: ${S.rule} The lit squares show where you can build ${/^[aeiou]/.test(nm)?'an':'a'} ${nm} plant for ${T.name.toLowerCase()} (${price}).${st.colors>1?' Tap the tool again to change color.':''}`))
+    notice(`${nm[0].toUpperCase()+nm.slice(1)} plant for ${T.name.toLowerCase()}, ${T.volt} · ${price}${st.colors>1?' · tap again to change color':''}`);
+  updateHud();
+};
 // A plant dragged from the dock: press on the Plant tool, drag over the map, release on a square to buy it there.
 // A ghost plant sits on the square under the pointer, on a green frame where a release builds it and a red frame
 // where it does not. A release off the map, over the dock, on an unsuitable square or without the money cancels:
@@ -1367,14 +1266,13 @@ const newPlantUpkeep=c=>plantUpkeep({cap:Math.max(2,TYPES[c].plantCap+(tut?0:SRC
 function plantDragAt(x,y){
   const r=cv.getBoundingClientRect(),el=document.elementFromPoint(x,y);
   pdrag.x=x;pdrag.y=y;
-  pdrag.i=el&&el.closest('.dock>*,.bar,.overlay,#pcard')?-1:toCell(x-r.left,y-r.top);
+  pdrag.i=el&&el.closest('.dock,.bar,.overlay,#pcard')?-1:toCell(x-r.left,y-r.top);
   const i=pdrag.i,ok=i>=0&&inBounds(cx(i),cy(i))&&freeLand(cx(i),cy(i)),rule=ok&&plantRule(cx(i),cy(i));
   pdrag.why=i<0?'':!ok?'Can\u2019t build here':rule?shortRule(rule):st.money<plantCost()?'Not enough money \u00b7 '+fmt$(plantCost()):'';
   pdrag.ok=i>=0&&!pdrag.why;
 }
 function endPlantDrag(drop){
   const d=pdrag;pdrag=null;document.body.classList.remove('pdragging');
-  for(const b of slotEls) b.classList.remove('lift');
   if(!d||!d.on) return;
   plantDraggedAt=performance.now();
   if(!drop||!d.ok||!canDragPlant()) return;
@@ -1383,32 +1281,25 @@ function endPlantDrag(drop){
   if(built) setMode('draw');
   updateHud();
 }
-const slotOf=e=>{const b=e.target.closest&&e.target.closest('.slot');return b&&!b.disabled&&!b.hidden?b:null};
-$('hotbar').addEventListener('pointerdown',e=>{
-  const b=slotOf(e);if(!b||(e.pointerType==='mouse'&&e.button!==0)) return;
-  pdrag={id:e.pointerId,x0:e.clientX,y0:e.clientY,on:false,i:-1,ok:false,why:'',color:+b.dataset.c,el:b};
-  try{b.setPointerCapture(e.pointerId)}catch(err){}
+$('tPlant').addEventListener('pointerdown',e=>{
+  if(e.pointerType==='mouse'&&e.button!==0) return;
+  pdrag={id:e.pointerId,x0:e.clientX,y0:e.clientY,on:false,i:-1,ok:false,why:''};
+  try{$('tPlant').setPointerCapture(e.pointerId)}catch(err){}
 });
-$('hotbar').addEventListener('pointermove',e=>{
+$('tPlant').addEventListener('pointermove',e=>{
   if(!pdrag||e.pointerId!==pdrag.id) return;
   if(!pdrag.on){
     if(Math.hypot(e.clientX-pdrag.x0,e.clientY-pdrag.y0)<PDRAG_PX) return;
     if(!canDragPlant()){pdrag=null;return}
-    // the plant takes the color of the slot it came from; the slot lifts while it is carried
-    pdrag.on=true;pdrag.touch=e.pointerType!=='mouse';pdrag.el.classList.add('lift');
+    // the plant takes the color the tool shows: the one picked with the tool, or the neediest
+    pdrag.on=true;pdrag.touch=e.pointerType!=='mouse';pdrag.color=st.mode==='plant'?st.plantColor:neediestColor();
     if(cardPlant) closePlantCard();
     document.body.classList.add('pdragging');
   }
   e.preventDefault();plantDragAt(e.clientX,e.clientY);
 });
-$('hotbar').addEventListener('pointerup',e=>{if(pdrag&&e.pointerId===pdrag.id){if(pdrag.on)plantDragAt(e.clientX,e.clientY);endPlantDrag(true)}});
-$('hotbar').addEventListener('pointercancel',()=>endPlantDrag(false));
-$('hotbar').addEventListener('click',e=>{
-  const b=slotOf(e);if(!b) return;
-  // a mouse drag from a slot can end with a click too: the drag already did the work
-  if(performance.now()-plantDraggedAt<500) return;
-  pickPlant(+b.dataset.c);
-});
+$('tPlant').addEventListener('pointerup',e=>{if(pdrag&&e.pointerId===pdrag.id){if(pdrag.on)plantDragAt(e.clientX,e.clientY);endPlantDrag(true)}});
+$('tPlant').addEventListener('pointercancel',()=>endPlantDrag(false));
 $('pauseBtn').onclick=togglePause;
 document.addEventListener('keydown',e=>{
   if(exitAnim) return;
@@ -1421,11 +1312,10 @@ document.addEventListener('keydown',e=>{
     return;
   }
   if(e.code==='Space'){e.preventDefault();togglePause()}
-  else if(e.key==='e'||e.key==='E') $('tCable').click();
+  else if(e.key==='e'||e.key==='E') $('tErase').click();
   // U upgrades the plant under the mouse
   else if((e.key==='u'||e.key==='U')&&hover>=0&&occ[hover]&&occ[hover].kind==='plant'&&!st.paused&&!st.over){buyUpgrade(occ[hover]);updateHud()}
-  else if(e.key==='p'||e.key==='P') plantKey();
-  else if(/^[1-4]$/.test(e.key)) pickPlant(+e.key-1);
+  else if(e.key==='p'||e.key==='P') $('tPlant').click();
   else if(e.key==='Escape'){if(pdrag)endPlantDrag(false);else if(toastOpen())hideToast();else setMode('draw')}
   else if(e.key==='s'||e.key==='S') cycleSpeed();
   else if(e.key==='m'||e.key==='M'){audioInit();setMuted(!muted)}
@@ -1514,7 +1404,7 @@ function toast(msg,secs){
   t.innerHTML='';t.append(msg);const k=document.createElement('span');k.className='tclose';k.textContent='Half speed · tap to close';t.append(k);
   t.hidden=false;$('speedBtn').classList.add('halved');applySpeed();
   // the tip sits at the bottom, just above the tool dock (and above the coach card in the tutorial)
-  let edge=dockTop();
+  let edge=document.querySelector('.dock').getBoundingClientRect().top;
   const coach=$('coach');if(coach&&!coach.hidden&&coach.offsetHeight&&!coachSide()) edge=Math.min(edge,coach.getBoundingClientRect().top);
   t.style.bottom=Math.max(12,window.innerHeight-edge+10)+'px';
 }
@@ -1547,7 +1437,7 @@ function floatBill(bill,income){
     `cable $${bill.cable.toLocaleString()} \u00b7 plants $${bill.plants.toLocaleString()}${bill.fuel?` \u00b7 fuel $${bill.fuel.toLocaleString()}`:''}`,net<0?'bill':'statement');
 }
 // A new week no longer pauses for a choice: you buy what you need, when you need it.
-// The town grows, and new colors arrive in weeks 2, 3 and 5 (NEW_COLOR_WEEKS).
+// The town grows, and new colors arrive in weeks 2, 3 and 5.
 function weekEnd(){
   // pay the week's running costs first (week 1 is free while the company gets started)
   const bill=st.week>1?upkeep():{total:0,cable:0,plants:0,fuel:0};st.money-=bill.total;st.lastBill=bill.total;st.fuel=0;
@@ -1555,7 +1445,7 @@ function weekEnd(){
   if(bill.total>0) floatBill(bill,income);
   st.week++;st.weekT=0;sfx.week();
   fitBounds();
-  if(NEW_COLOR_WEEKS.includes(st.week)&&st.colors<city().maxColors){
+  if([2,3,5].includes(st.week)&&st.colors<city().maxColors){
     st.colors++;const c=st.colors-1,T=TYPES[c];spawnPlant(c);spawnHouse(c);
     toast(`${T.name} arrive! They need ${T.volt}: wire them to ${COLOR_NAMES[c]} plants.`,4.5);
   }else{
@@ -1623,14 +1513,14 @@ function startTutorial(next,withTitle){
   st.money=9999;
   tut={step:withTitle?-1:0,t:0,next,ents:{},ghost:null,night:withTitle?0.9:0.62};
   if(withTitle){const tc=$('titleCard');tc.hidden=false;tc.classList.remove('play');void tc.offsetWidth;tc.classList.add('play')}
-  document.body.classList.add('tutorial');document.body.classList.remove('tut-erase','tut-plants');
+  document.body.classList.add('tutorial');
   closeMenu();$('over').hidden=true;
   audioInit();resume();setMode('draw');updateHud();
 }
 function endTutorial(play){
   try{localStorage.setItem('wattsville-tut','1')}catch(e){}
   const next=tut?tut.next:0;
-  tut=null;document.body.classList.remove('tutorial','tut-erase','tut-plants');$('coach').hidden=true;$('titleCard').hidden=true;
+  tut=null;document.body.classList.remove('tutorial');$('coach').hidden=true;$('titleCard').hidden=true;
   if(play) startCity(next);
   else openMenu();
 }
@@ -1650,7 +1540,7 @@ function tutStep(){
       if(E.h1.powered){T.ghost=null;sfx.start();coach('There’s light! A lit home sends energy back to the town.');go(2)}
       break;
     case 2:
-      if(T.t>3.2){E.h2=home(X-1,Y-3);E.h3=home(X+2,Y-3);document.body.classList.add('tut-erase');coach('Two more homes. Start a drag on any cable or plant to branch off and reach them. A wrong cable? Switch the toggle to Erase and drag over it.');T.ghost=[[X-1,Y],[X-1,Y-3]];go(3)}
+      if(T.t>3.2){E.h2=home(X-1,Y-3);E.h3=home(X+2,Y-3);coach('Two more homes. Start a drag on any cable or plant to branch off and reach them.');T.ghost=[[X-1,Y],[X-1,Y-3]];go(3)}
       break;
     case 3:
       if(E.h2.powered||E.h3.powered) T.ghost=null;
@@ -1663,7 +1553,7 @@ function tutStep(){
       if(E.h4.share>0){coach('Brownout! Four homes now share three homes’ worth of power, so they all dim.');go(6)}
       break;
     case 6:
-      if(T.t>3.8){E.p2=addEntity('plant',0,X-2,Y+2);E.p2.paid=ECON.plant*SRC().cost;document.body.classList.add('tut-plants');coach('Link this new plant into your network. Plants of the same color pool their power. In a game, you drag new plants from the bar at the bottom.');T.ghost=[[X-2,Y+2],[X-2,Y]];go(7)}
+      if(T.t>3.8){E.p2=addEntity('plant',0,X-2,Y+2);E.p2.paid=ECON.plant*SRC().cost;coach('Link this new plant into your network. Plants of the same color pool their power.');T.ghost=[[X-2,Y+2],[X-2,Y]];go(7)}
       break;
     case 7:
       if(houses.length&&houses.every(h=>h.powered)){T.ghost=null;sfx.week();go(8);
@@ -1739,7 +1629,9 @@ let hudAcc=0;
 function updateHud(){
   if(previewing) return;
   $('score').textContent=fmt$(st.money);
-  renderHotbar();
+  $('nPlant').textContent=fmt$(plantCost());
+  $('tPlant').classList.toggle('poor',st.money<plantCost());
+  {const pc=theme.nets?theme.nets[st.mode==='plant'?st.plantColor:neediestColor()]:'';$('tPlant').style.setProperty('--plant-color',pc)}
   $('starsHud').textContent=starStr(starsFor(city(),st.score));
   $('mult').hidden=!st.allLit||st.over;
   {let html='';for(let c=0;c<st.colors;c++){const all=houses.filter(h=>h.color===c),on=all.filter(h=>h.powered).length;
