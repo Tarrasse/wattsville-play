@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head>
-<!-- wattsville-preview: feat/clear-money@2472400 -->
+<!-- wattsville-preview: feat/clear-money@cb2b735 -->
 <meta name="robots" content="noindex"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Wattsville 3D</title><meta name="claude:viewport-fit-sides" content="cover"><link rel="stylesheet" href="fonts/fonts.css"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <style>
 /* Layout: one-screen game. Thin status bar on top, the survey-map canvas fills the middle, tool tray at the bottom. */
@@ -691,36 +691,36 @@ const CITIES=[
   {id:'godalming',name:'Godalming',year:1881,place:'Surrey, England',source:'hydro',
    fact:'A water wheel at Westbrook Mill on the River Wey lit the town’s streets from September 1881.',
    why:'The world’s first public electricity supply: anyone in the town could ask to be connected, not only one mill or one house.',
-   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,stars:[1250,6000,12000],
+   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,stars:[500,6250,36000],
    water:river([[-30,3],[-14,2],[-6,4],[2,3],[10,5],[18,4],[30,5]],1.6)},
   {id:'newyork',name:'New York',year:1882,place:'Lower Manhattan',source:'coal',
    fact:'Edison’s Pearl Street Station burned coal to turn its dynamos, and switched on for about 85 customers on 4 September 1882.',
    why:'The first central power station: one plant, cables under the streets and a meter for each paying customer. Power companies still work this way.',
-   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,stars:[1000,4500,8500],
+   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,stars:[250,4750,33750],
    // Manhattan narrows to its southern tip between the Hudson (west) and the East River (east)
    water:(x,y)=>{const s=Math.max(0,y-2)*0.6,L=-8+s,R=7-s;return (x<=L&&x>L-3)||(x>=R&&x<R+2)||y>=9}},
   {id:'askov',name:'Askov',year:1891,place:'Jutland, Denmark',source:'wind',
    fact:'Poul la Cour built test wind turbines at the Askov folk high school from 1891, and trained the first “wind electricians”.',
    why:'La Cour measured the wind like a scientist and showed that farms and villages could make their own power. Denmark still leads the world in wind power.',
-   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,stars:[1250,4500,6000],
+   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,stars:[250,8750,33000],
    // open farmland with a small lake and a stream
    water:anyOf((x,y)=>Math.hypot((x+11)/1.4,y-6)<2.4,river([[-11,6],[-4,9],[4,10],[30,12]],1.0))},
   {id:'niagara',name:'Niagara Falls',year:1896,place:'New York, USA',source:'hydro',
    fact:'From 16 November 1896, the Adams Power Plant at Niagara Falls sent AC power to Buffalo, about 30 km away.',
    why:'Niagara proved that alternating current (AC) can carry power far from where it is made. It ended the “war of the currents”: the grids of the world use AC.',
-   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,stars:[1000,5000,8500],
+   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,stars:[250,5750,34000],
    // the Niagara River runs north past the town
    water:river([[-4,-20],[-3,-8],[-1,-2],[1,4],[2,20]],3.2)},
   {id:'obninsk',name:'Obninsk',year:1954,place:'Kaluga region, USSR',source:'nuclear',
    fact:'On 27 June 1954 the Obninsk plant became the first nuclear power station to supply an electricity grid.',
    why:'Obninsk started the nuclear age of electricity: a little fuel makes a lot of power, with no smoke. France now gets most of its electricity this way.',
-   plant:[-6,-3],cable:50,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[1500,7000,12000],
+   plant:[-6,-3],cable:50,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[250,4500,23000],
    // the Protva river runs along the north of the town
    water:river([[-30,-5],[-14,-4],[-6,-6],[2,-5],[10,-7],[30,-6]],2)},
   {id:'dubai',name:'Dubai',year:1961,place:'Deira and Bur Dubai',source:'gas',
    fact:'The Dubai Electricity Company began supplying Deira in 1961. Today, Dubai’s power stations burn natural gas.',
    why:'Dubai grew from a small trading town into a city of millions on power from oil and gas. Its gas plants also turn seawater into drinking water.',
-   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[750,3500,10000],
+   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[250,7750,43250],
    // the gas pipeline comes in from the west and runs through the town, south of the Creek
    pipe:[[-18,-3],[-7,-2],[-3,2],[4,4],[14,3],[22,-1]],
    // the Gulf coast to the north; the Creek divides Deira from Bur Dubai and ends in a lagoon
@@ -755,7 +755,7 @@ const bestFor=c=>{try{return +localStorage.getItem(BEST_KEY+c.id)||0}catch(e){re
    percentage with each plant bought.
    Stars: three targets for the profit of a run: the most cash the company had, less the money it started with.
    So a lean network beats a big wasteful one. All cities are open from the start. */
-const ECON={pay:0.25,allLit:1.25,cable:1,bridge:8,cross:10,up:15,upStep:5,plant:25,plantMul:1.2,first:2,saved:5};
+const ECON={pay:0.25,allLit:1.25,cable:1,bridge:8,cross:10,up:15,upGrow:1.5,upFlat:3,upStep:0,plant:25,plantMul:1.2,first:2,saved:5};
 // pacing: seconds a powered home takes to fully recover; an unconnected home to go dark; the brownout
 // dimming divisor; and how often homes appear (start, fastest, and how quickly it speeds up)
 const BAL={recover:30,dark:70,brown:40,spawnStart:14,spawnMin:6,spawnRamp:120,
@@ -787,7 +787,9 @@ const payOf=h=>TYPES[h.color].pay*dmd(h)/TYPES[h.color].demand;
 // whatever was bought before. (An old save has no p.ups: its level comes from its pips.)
 const basePips=c=>Math.max(2,TYPES[c].plantCap+(tut?0:SRC().cap));
 const upsOf=p=>p.ups??Math.max(0,Math.round((p.cap-basePips(p.color))/2));
-const stepCost=k=>Math.round(ECON.up+ECON.upStep*k);
+// the price of the next +2 pips depends only on how often THAT plant was upgraded (k): the first ECON.upFlat
+// steps cost ECON.up each, then each step costs ECON.upGrow times the step before. The order of plants does not matter.
+const stepCost=k=>Math.round(ECON.up*ECON.upGrow**Math.max(0,k-ECON.upFlat)+ECON.upStep*k);
 // with no plant: the cheapest upgrade of all plants (of colour c when given)
 const cheapestUp=c=>{let best=null;for(const p of plants)if(c===undefined||p.color===c){const k=upsOf(p);if(!best||k<best.k)best={p,k}}return best?best.p:null};
 const upCost=p=>{if(!p)p=cheapestUp();return p?stepCost(upsOf(p)):stepCost(0)};
@@ -1864,13 +1866,17 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('brk').hidden)toggleBreak
 /* ---------- the alert: one at a time, with the fix ----------
    Debt first, then new customers, then a short colour. Each one shows once for each episode: a short
    colour that the player closed stays closed until the colour is short again. */
-let alertKey='';
+let alertKey='';const SHORT_WAIT=5;
 function pickAlert(){
   if(st.money>=0) st.debtNo=false;
   if(st.money<0&&!st.debtNo) return 'debt';
   if(st.newType>=0){const c=st.newType;if(st.newTypeNo||houses.some(h=>h.color===c&&h.powered))st.newType=-1;else return 'new'+c}
-  st.shortNo=st.shortNo||[];let best=-1,bn=0;
-  for(let c=0;c<st.colors;c++){const n=demOf(c)-capOf(c);if(n<=0)st.shortNo[c]=false;else if(!st.shortNo[c]&&n>bn){bn=n;best=c}}
+  // a colour must stay short for SHORT_WAIT seconds of play: a short that the player fixes at once gets no alert
+  st.shortNo=st.shortNo||[];st.shortT0=st.shortT0||[];let best=-1,bn=0;
+  for(let c=0;c<st.colors;c++){const n=demOf(c)-capOf(c);
+    if(n<=0){st.shortNo[c]=false;st.shortT0[c]=null;continue}
+    if(st.shortT0[c]==null)st.shortT0[c]=st.t;
+    if(!st.shortNo[c]&&st.t-st.shortT0[c]>=SHORT_WAIT&&n>bn){bn=n;best=c}}
   return best>=0?'short'+best:'';
 }
 function updateAlert(){
