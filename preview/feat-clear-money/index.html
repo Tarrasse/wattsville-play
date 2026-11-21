@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head>
-<!-- wattsville-preview: feat/clear-money@cb2b735 -->
+<!-- wattsville-preview: feat/clear-money@4885247 -->
 <meta name="robots" content="noindex"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Wattsville 3D</title><meta name="claude:viewport-fit-sides" content="cover"><link rel="stylesheet" href="fonts/fonts.css"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <style>
 /* Layout: one-screen game. Thin status bar on top, the survey-map canvas fills the middle, tool tray at the bottom. */
@@ -787,8 +787,8 @@ const payOf=h=>TYPES[h.color].pay*dmd(h)/TYPES[h.color].demand;
 // whatever was bought before. (An old save has no p.ups: its level comes from its pips.)
 const basePips=c=>Math.max(2,TYPES[c].plantCap+(tut?0:SRC().cap));
 const upsOf=p=>p.ups??Math.max(0,Math.round((p.cap-basePips(p.color))/2));
-// the price of the next +2 pips depends only on how often THAT plant was upgraded (k): the first ECON.upFlat
-// steps cost ECON.up each, then each step costs ECON.upGrow times the step before. The order of plants does not matter.
+// the price of the next +2 pips depends only on how often THAT plant was upgraded (k): steps k=0..ECON.upFlat
+// cost ECON.up each, then each step costs ECON.upGrow times the step before. The order of plants does not matter.
 const stepCost=k=>Math.round(ECON.up*ECON.upGrow**Math.max(0,k-ECON.upFlat)+ECON.upStep*k);
 // with no plant: the cheapest upgrade of all plants (of colour c when given)
 const cheapestUp=c=>{let best=null;for(const p of plants)if(c===undefined||p.color===c){const k=upsOf(p);if(!best||k<best.k)best={p,k}}return best?best.p:null};
