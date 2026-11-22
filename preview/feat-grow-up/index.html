@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head>
-<!-- wattsville-preview: feat/grow-up@b144275 -->
+<!-- wattsville-preview: feat/grow-up@457ccca -->
 <meta name="robots" content="noindex"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Wattsville 3D</title><meta name="claude:viewport-fit-sides" content="cover"><link rel="stylesheet" href="fonts/fonts.css"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <style>
 /* Layout: one-screen game. Thin status bar on top, the survey-map canvas fills the middle, tool tray at the bottom. */
@@ -103,6 +103,11 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .netchip.flash{animation:chipFlash .35s ease-out}
 .netchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 @keyframes chipFlash{from{transform:scale(1.12)}}
+/* the end of a week: a short glow on the chip; a tap opens the statement */
+.netchip.week{animation:chipWeek 1.5s ease-in-out}
+@keyframes chipWeek{0%,100%{box-shadow:0 0 0 0 transparent}30%{transform:scale(1.1);box-shadow:0 0 0 5px color-mix(in srgb,var(--net-d) 35%,transparent)}70%{box-shadow:0 0 0 3px color-mix(in srgb,var(--net-d) 20%,transparent)}}
+.netchip.unread::after{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;margin-left:2px}
+@media (prefers-reduced-motion:reduce){.netchip.week{animation:none}}
 .hud-sub{display:flex;align-items:center;gap:12px;font-size:11px;color:var(--muted);margin-top:2px;white-space:nowrap}
 .days{display:inline-flex;gap:3px;margin-left:-2px;vertical-align:1px}.days i{width:5px;height:5px;border-radius:50%;background:var(--line)}.days i.on{background:var(--muted)}
 .starbar{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
@@ -118,17 +123,17 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .brk .sep{border-top:1px solid var(--line);margin:6px 0}
 .brk .tot b{font-size:14px}.brk .tot span{color:var(--ink);font-weight:600}
 .brk .nx{font-size:11px;margin-top:6px}.brk .nx b{font-family:var(--font-mono);font-weight:600;color:var(--ink)}
+.brk .stl{display:block;margin:8px 0 -4px;padding:4px 0;font-size:12px}
 .tip{margin-top:9px;padding:7px 9px;border-radius:8px;background:color-mix(in srgb,var(--net-a) 14%,transparent);color:var(--ink);line-height:1.35}
 .tip b{font-weight:600}
-/* the alert: at most one, under the legend, with the fix and its price */
-.alert{position:relative;margin-top:6px;box-sizing:border-box;width:min(330px,calc(100vw - 32px));padding:9px 30px 9px 12px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);font-size:12.5px;line-height:1.4;color:var(--ink);white-space:normal;animation:alertIn .3s ease-out}
+/* the alert: at most one, under the legend. It floats over the map, so the bar keeps its height and the camera does not move. */
+.alert{position:absolute;left:0;top:100%;z-index:7;margin-top:6px;box-sizing:border-box;width:min(330px,calc(100vw - 32px));padding:9px 30px 9px 12px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.18);font-size:12.5px;line-height:1.4;color:var(--ink);white-space:normal;animation:alertIn .3s ease-out}
 .alert.info{border-left-color:var(--net-b)}
 .alert b{font-weight:600}.alert .mu{color:var(--muted)}
 .alert .fix{display:inline-block;margin-top:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:7px;border:0;background:var(--ink);color:var(--bg);font-family:var(--font-mono);min-height:30px}
-.alert .fix:disabled{opacity:.45;cursor:default}
 .alert .ax{position:absolute;top:4px;right:4px;border:0;background:none;color:var(--muted);font-size:13px;min-width:28px;min-height:28px;cursor:pointer}
 @keyframes alertIn{from{opacity:0;transform:translateY(-4px)}}
-/* the weekly statement: one card a week. It stays 8 s; a tap keeps it open. */
+/* the weekly statement: one card a week. It opens only when the player taps the money chip (or in the tutorial). */
 .stmt{position:absolute;left:50%;transform:translateX(-50%);top:calc(118px + env(safe-area-inset-top,0px));z-index:6;box-sizing:border-box;width:min(340px,calc(100vw - 32px));padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.22);font-size:12.5px;color:var(--muted);line-height:1.4;cursor:pointer;animation:stmtIn .35s cubic-bezier(.2,.9,.3,1.25)}
 @media (min-width:900px){.stmt{left:auto;right:max(16px,env(safe-area-inset-right,0px));transform:none;top:calc(64px + env(safe-area-inset-top,0px));animation-name:alertIn}}
 .tutorial .stmt{top:calc(62px + env(safe-area-inset-top,0px))}
@@ -185,6 +190,8 @@ body.pdragging,body.pdragging *{cursor:grabbing!important}
   .money{font-size:19px}.hud-row{gap:10px;font-size:11px}
   .dock{--tool:58px;gap:1px}
   .weekchip{font-size:10px;min-width:0}
+  /* the star text is short on a phone ('$12,005 / $12,500'), so it ends inside the screen */
+  .hud-sub{gap:8px}.starbar{gap:5px}.starbar .pb{width:40px}
   .ctrls{gap:4px}
   .bar .iconbtn{width:32px;height:32px}.bar .speed{padding:0 7px}
   .tray > .tool{padding:0 9px;font-size:12px;height:32px}
@@ -446,7 +453,7 @@ body.in-menu .notices{display:none}
           <li>Drag from a plant, home or cable to lay cable ($1 a square, $8 more over water). Erase cable to get the money back.</li>
           <li>Each plant powers as many homes as its pips. Too many homes on one network share the power: they all dim and pay less. Hold a plant to add 2 pips, or tap it to see its week, upgrade it or sell it. A plant takes 3 upgrades at most; after that, build a new plant.</li>
           <li>Each color is a voltage for one kind of customer: amber for homes, blue for factories, magenta for tram depots, green for charging stations. Factories and depots use 2 pips but pay more.</li>
-          <li>Each lit home pays $30 a week; with every home lit, pay is ×1.25. Each week ends with bills for cable, plants and fuel. The chip next to your cash shows your profit a week: tap it for the details.</li>
+          <li>Each lit home pays $30 a week; with every home lit, pay is ×1.25. Each week ends with bills for cable, plants and fuel. The chip next to your cash shows your profit a week: tap it for the details. It glows when a week ends: tap it to see the week's statement.</li>
           <li>The town has a size limit. When it has no more room, it grows up: a home becomes an apartment block, then a tower block, and other customers get more floors. Each level needs more pips and pays more. Scaffolding and a <b>+</b> show over a building for a few seconds before it rises: add capacity to its network, or it browns out.</li>
           <li>Stars count your profit: your best cash, less the start cash. Unlit homes slowly dim; if one goes fully dark, the game ends.</li>
         </ul>
@@ -695,36 +702,36 @@ const CITIES=[
   {id:'godalming',name:'Godalming',year:1881,place:'Surrey, England',source:'hydro',
    fact:'A water wheel at Westbrook Mill on the River Wey lit the town’s streets from September 1881.',
    why:'The world’s first public electricity supply: anyone in the town could ask to be connected, not only one mill or one house.',
-   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,area:[11,24],stars:[1250,10000,12500],
+   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,area:[11,24],stars:[1500,12750,13750],
    water:river([[-30,3],[-14,2],[-6,4],[2,3],[10,5],[18,4],[30,5]],1.6)},
   {id:'newyork',name:'New York',year:1882,place:'Lower Manhattan',source:'coal',
    fact:'Edison’s Pearl Street Station burned coal to turn its dynamos, and switched on for about 85 customers on 4 September 1882.',
    why:'The first central power station: one plant, cables under the streets and a meter for each paying customer. Power companies still work this way.',
-   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1250,10000,11000],
+   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1000,4250,5250],
    // Manhattan narrows to its southern tip between the Hudson (west) and the East River (east)
    water:(x,y)=>{const s=Math.max(0,y-2)*0.6,L=-8+s,R=7-s;return (x<=L&&x>L-3)||(x>=R&&x<R+2)||y>=9}},
   {id:'askov',name:'Askov',year:1891,place:'Jutland, Denmark',source:'wind',
    fact:'Poul la Cour built test wind turbines at the Askov folk high school from 1891, and trained the first “wind electricians”.',
    why:'La Cour measured the wind like a scientist and showed that farms and villages could make their own power. Denmark still leads the world in wind power.',
-   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,area:[11,24],stars:[1500,9750,10750],
+   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,area:[11,24],stars:[1500,5750,7500],
    // open farmland with a small lake and a stream
    water:anyOf((x,y)=>Math.hypot((x+11)/1.4,y-6)<2.4,river([[-11,6],[-4,9],[4,10],[30,12]],1.0))},
   {id:'niagara',name:'Niagara Falls',year:1896,place:'New York, USA',source:'hydro',
    fact:'From 16 November 1896, the Adams Power Plant at Niagara Falls sent AC power to Buffalo, about 30 km away.',
    why:'Niagara proved that alternating current (AC) can carry power far from where it is made. It ended the “war of the currents”: the grids of the world use AC.',
-   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,area:[11,24],stars:[750,7000,9500],
+   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,area:[11,24],stars:[1000,1750,6000],
    // the Niagara River runs north past the town
    water:river([[-4,-20],[-3,-8],[-1,-2],[1,4],[2,20]],3.2)},
   {id:'obninsk',name:'Obninsk',year:1954,place:'Kaluga region, USSR',source:'nuclear',
    fact:'On 27 June 1954 the Obninsk plant became the first nuclear power station to supply an electricity grid.',
    why:'Obninsk started the nuclear age of electricity: a little fuel makes a lot of power, with no smoke. France now gets most of its electricity this way.',
-   plant:[-6,-3],cable:50,bridges:3,cross:1,spawnMul:1,maxColors:4,area:[11,24],stars:[750,9750,10750],
+   plant:[-6,-3],cable:50,bridges:3,cross:1,spawnMul:1,maxColors:4,area:[11,24],stars:[250,2500,3500],
    // the Protva river runs along the north of the town
    water:river([[-30,-5],[-14,-4],[-6,-6],[2,-5],[10,-7],[30,-6]],2)},
   {id:'dubai',name:'Dubai',year:1961,place:'Deira and Bur Dubai',source:'gas',
    fact:'The Dubai Electricity Company began supplying Deira in 1961. Today, Dubai’s power stations burn natural gas.',
    why:'Dubai grew from a small trading town into a city of millions on power from oil and gas. Its gas plants also turn seawater into drinking water.',
-   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,area:[11,24],stars:[750,6500,10250],
+   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,area:[11,24],stars:[1250,12500,13500],
    // the gas pipeline comes in from the west and runs through the town, south of the Creek
    pipe:[[-18,-3],[-7,-2],[-3,2],[4,4],[14,3],[22,-1]],
    // the Gulf coast to the north; the Creek divides Deira from Bur Dubai and ends in a lagoon
@@ -892,7 +899,7 @@ function buildContours(){
 function updateCityLabel(){if(previewing)return;$('cityLabel').textContent=`${city().name} · ${city().year}`}
 
 function newGame(){
-  hideToast();hintQ=[];newsQ=[];netFlash=null;$('notices').replaceChildren();$('stmt').hidden=true;$('alert').hidden=true;alertKey='';
+  hideToast();hintQ=[];newsQ=[];netFlash=null;$('notices').replaceChildren();$('stmt').hidden=true;$('alert').hidden=true;alertKey='';$('notices').style.top='';$('net').classList.remove('week','unread');
   water=new Uint8Array(N);wires=Array.from({length:N},()=>[]);cross=new Uint8Array(N);bridge=new Uint8Array(N);occ=new Array(N).fill(null);
   links=new Set();plants=[];houses=[];flashes=[];drag=null;allocAcc=0;
   ripples=[];linkBorn=new Map();energized=new Map();floats=[];
@@ -991,10 +998,11 @@ function startRise(h){
   const from=l?T.ups[l-1]:[T.one,T.name.toLowerCase()],to=T.ups[l];
   const msg=g.n>1?`${g.n} ${from[1]} grow into ${to[1]}: +${g.pips} pips needed`
     :`${an(from[0]).replace('a','A')} ${from[0]} grows into ${an(to[0])} ${to[0]}: +${add} pip${add>1?'s':''} needed`;
-  if(g.el) g.el.remove();g.el=notice(msg,'grow');
+  // the notice waits in the news queue (one message at a time); a newer group replaces a waiting one
+  news(()=>{if(g.el)g.el.remove();g.el=notice(msg,'grow')});
   floatText(h.x+.5,h.y-.4,`+${add} pip${add>1?'s':''} soon`);
-  // the first time in a run, a tip explains it
-  hint('rise','The town has no more room, so it grows up. Scaffolding shows a building that will rise and need more pips. Add capacity to its network before it rises.');
+  // the first week with a rise, the statement explains it (once for each player)
+  st.roseWeek=true;
   return add;
 }
 function finishRise(h){
@@ -1519,6 +1527,7 @@ function resumeRun(){
   plants=run.plants;houses=run.houses;occ=new Array(N).fill(null);
   for(const e of plants.concat(houses)) occ[idx(e.x,e.y)]=e;
   st=run.st;st.cam={...st.bounds};fitBounds();
+  $('net').classList.toggle('unread',!!(st.stmtNew&&st.lastW));
   allocate();updateHud();updateCityLabel();
   closeMenu();userPaused=false;togglePause();
   return true;
@@ -1536,18 +1545,30 @@ window.desktopBeforeQuit=()=>{saveRun();if(window.desktopFlushSave) desktopFlush
 
 /* ---------- messages ----------
    Four tiers, so the player reads only what matters:
-   - alert: at most one on screen (debt, a new customer type, a short colour), with the fix and its price.
-     It closes when its cause goes away.
-   - news: the weekly statement and a new star. At least NEWS_GAP between two.
-   - map only: the dark-home beacon, an appliance (at most one float each FLOAT_GAP), a rescue, a sale.
+   - alert: at most one on screen (debt, a new customer type). It closes when its cause goes away.
+   - news: a new star. At least NEWS_GAP between two.
+   - map only: a short colour (pips, dim homes, red rings, the legend and the Plant tile), the dark-home beacon,
+     an appliance (at most one float each FLOAT_GAP), a rescue, a sale.
    - silent: the first connection, a crossover, the price of a build. The previews and the money chip show them.
-   A first-time hint (a toast) teaches one rule, once for each player. */
+     The end of a week makes the chip glow; a tap on it opens the weekly statement.
+   A first-time hint (a toast) teaches one rule, once for each player.
+   One message at a time: an alert, a hint, a star or an open statement blocks the others (see msgBusy()).
+   A message that comes while another shows waits; each kind keeps at most one waiting message, the newest.
+   A notice that answers a player action (a rule, not enough money) shows at once. No message moves the camera. */
 // the wall clock of the messages (a test can replace it with its own clock)
 let wallMs=()=>performance.now();
 const NEWS_GAP=8000,FLOAT_GAP=5000,STMT_MS=8000,CHIP_MS=2000;
 // A hint stays until the player taps it, and the game runs at half speed while it shows.
 let toastT=0;
 const toastOpen=()=>!$('toast').hidden;
+// the message on screen, if any: an open statement, the alert, a hint or a star (feedback notices do not count)
+function msgBusy(skip){
+  if(skip!=='stmt'&&!$('stmt').hidden) return 'stmt';
+  if(skip!=='alert'&&!$('alert').hidden) return 'alert';
+  if(skip!=='hint'&&toastOpen()) return 'hint';
+  if(skip!=='star'&&$('notices').querySelector('.notice.star')) return 'star';
+  return '';
+}
 function toast(msg){
   if(previewing)return;const t=$('toast');
   t.innerHTML='';t.append(msg);const k=document.createElement('span');k.className='tclose';k.textContent='Half speed · tap to close';t.append(k);
@@ -1569,17 +1590,18 @@ function notice(msg,kind){
   setTimeout(()=>n.remove(),Math.min(6,2.4+msg.length/40)*1000);
   return n;
 }
-// news: one at a time, NEWS_GAP apart; a later one waits in the queue
+// news: one at a time, NEWS_GAP apart, and only when no other message shows; the newest waits, older ones drop
 let newsQ=[],newsAt=-1e9;
-function news(fn){if(previewing||tut)return;newsQ.push(fn);pumpNews()}
-function pumpNews(){if(!newsQ.length||wallMs()-newsAt<NEWS_GAP)return;newsAt=wallMs();newsQ.shift()()}
+function news(fn){if(previewing||tut)return;newsQ=[fn];pumpNews()}
+function pumpNews(){if(!newsQ.length||wallMs()-newsAt<NEWS_GAP||msgBusy())return;newsAt=wallMs();newsQ.shift()()}
 // first-time hints: each one shows once for each player (the flags live in the save), one at a time
 const SEEN_KEY='wattsville-seen';
 let seen={};try{seen=JSON.parse(localStorage.getItem(SEEN_KEY))||{}}catch(e){seen={}}
 let hintQ=[];
-function hint(key,msg){if(previewing||tut||seen[key]||hintQ.some(q=>q[0]===key))return false;hintQ.push([key,msg]);pumpHint();return true}
+// one hint waits at most: a newer hint takes its place (a dropped hint comes back when its rule matters again)
+function hint(key,msg){if(previewing||tut||seen[key]||hintQ.some(q=>q[0]===key))return false;hintQ=[[key,msg]];pumpHint();return true}
 function pumpHint(){
-  if(!hintQ.length||toastOpen()||previewing||tut||!st||st.paused||st.over||!$('intro').hidden)return;
+  if(!hintQ.length||msgBusy()||previewing||tut||!st||st.paused||st.over||!$('intro').hidden)return;
   const [k,m]=hintQ.shift();seen[k]=1;try{localStorage.setItem(SEEN_KEY,JSON.stringify(seen))}catch(e){}
   toast(m);
 }
@@ -1587,14 +1609,11 @@ function hideToast(){$('toast').hidden=true;toastT=0;$('speedBtn').classList.rem
 $('toast').addEventListener('click',hideToast);
 // the city's building rule: a hint once for each city, the first time the player picks up a plant there
 function ruleHint(){if(tut)return;const S=SRC();hint('rule-'+city().id,`${S.name}: ${S.where}. A green square shows where a plant can stand.`)}
-// the six rules a player meets in play, each taught once, when it first matters
+// a rule a player meets in play, taught once, when it first matters. A short colour and spare pips get no hint:
+// the map shows a short colour, and the weekly statement names the spare pips.
 function checkHints(){
   if(tut||previewing||st.over) return;
-  if(st.short.some(Boolean)) hint('short','A plant has pips: each pip powers one home. When a colour is short, hold one of its plants to add 2 pips.');
-  if(houses.some(h=>!h.powered&&h.share>0)) hint('dim','Dim homes share too few pips, so they pay less. Add pips to light them fully.');
   if(st.money<0) hint('debt','Debt is not the end. The bills still come each week, so cut them: erase cable that lights no home, or sell a plant with no load.');
-  const spare=plants.reduce((a,p)=>a+p.cap-p.load,0);
-  if(spare>4) hint('spare',`Spare pips cost $${UPKEEP.pip} a week each, used or not. Add pips only when a colour is short.`);
 }
 
 /* ---------- money words ---------- */
@@ -1626,7 +1645,7 @@ function noMoney(x,what){
 let netFlash=null;
 function markBuild(){if(!st)return;const now=wallMs();if(!netFlash||now>netFlash.until||netFlash.st!==st)netFlash={base:netWeek(),st};netFlash.until=now+CHIP_MS}
 const pipWeek=c=>ECON.pay*WEEK*TYPES[c].pay/TYPES[c].demand*(st.allLit?ECON.allLit:1);
-// the plant the short alert upgrades: the cheapest in an overloaded network of that colour
+// the plant that the statement and the breakdown name for a short colour: the cheapest in an overloaded network of that colour
 // plants at the max are skipped: null means only a new plant adds pips
 function fixPlant(c){const over=plants.some(q=>q.color===c&&q.over);let best=null;for(const p of plants)if(p.color===c&&(p.over||!over)&&!atMax(p)&&(!best||upsOf(p)<upsOf(best)))best=p;return best}
 // one best action, for the breakdown: a short colour, customers that wait for cable, else the biggest bill
@@ -1657,21 +1676,34 @@ function statementAction(W){
   if(spare>0) return `<b>Tip:</b> ${pl(spare,'spare pip')} cost${spare===1?'s':''} ${nb$(spare*UPKEEP.pip)} a week. Buy pips only when a colour is short.`;
   return '';
 }
-function showStatement(W){
+// kept: the player opened it, so it stays until a tap (the tutorial card closes by itself after STMT_MS)
+function showStatement(W,kept){
   const el=$('stmt'),loss=W.cash<0,tot=Math.max(1,W.inc+W.bill+W.build),run=W.inc-W.bill;
   const C=city(),nx=tut?0:C.stars.find(s=>s>st.score),rate=Math.max(run,netWeek());
   const wks=nx&&rate>0?Math.max(1,Math.ceil((nx-st.score)/rate)):0,act=statementAction(W);
-  el.className='stmt'+(loss?' loss':'');el.dataset.kept='';
+  el.className='stmt'+(loss?' loss':'');el.dataset.kept=kept?'1':'';
   el.innerHTML=`<div class="hd"><span>Week ${W.wk}: cash ${loss?'down':'up'}</span><b>${nbs$(W.cash)}</b></div>`+
     `<div class="split">${[['',W.inc],['b',W.bill],['c',W.build]].filter(x=>x[1]>0).map(([k,v])=>`<i class="${k}" style="flex:${v/tot}"></i>`).join('')}</div>`+
     `<div class="lg"><span>Paid ${fmt$(W.inc)}</span><span style="color:var(--danger)">Bills ${fmt$(W.bill)}</span><span style="color:var(--net-c)">Building ${fmt$(W.build)}</span></div>`+
     `<p>Running profit: <b>${nbs$(run)}</b> a week before building.`+(W.wk===1&&!tut?' Bills start in week 2.':'')+
       (nx?` Next star at <b>${fmt$(nx)}</b>${wks?`: about ${pl(wks,'week')}`:''}.`:'')+`</p>`+
-    (act?`<p class="tip">${act}</p>`:'')+`<span class="kp">Tap to keep</span>`;
-  el.hidden=false;clearTimeout(stmtTimer);stmtTimer=setTimeout(()=>{if(!el.dataset.kept)el.hidden=true},STMT_MS);
+    (W.note?`<p>${W.note}</p>`:'')+
+    (act?`<p class="tip">${act}</p>`:'')+`<span class="kp">${kept?'Tap to close':'Tap to keep'}</span>`;
+  el.hidden=false;clearTimeout(stmtTimer);if(!kept)stmtTimer=setTimeout(()=>{if(!el.dataset.kept)el.hidden=true},STMT_MS);
+  if(kept&&!$('brk').hidden)toggleBreakdown(false);
+  // the alert waits while the statement is open (it comes back when the statement closes)
+  if(!tut&&!$('alert').hidden){$('alert').hidden=true;alertKey='';placeNotices()}
 }
-$('stmt').addEventListener('click',()=>{const el=$('stmt');if(el.dataset.kept){el.hidden=true;return}
+function closeStatement(){$('stmt').hidden=true;clearTimeout(stmtTimer);if(st&&!tut&&!st.over)updateHud()}
+$('stmt').addEventListener('click',()=>{const el=$('stmt');if(el.dataset.kept){closeStatement();return}
   el.dataset.kept='1';clearTimeout(stmtTimer);el.querySelector('.kp').textContent='Tap to close'});
+// the end of a week: the chip glows for a moment and keeps a dot until the player opens the statement
+function chipWeek(){
+  if(previewing||tut)return;const chip=$('net');
+  chip.classList.remove('week');void chip.offsetWidth;chip.classList.add('week','unread');
+}
+function stmtRead(){if(st)st.stmtNew=false;$('net').classList.remove('unread')}
+$('net').addEventListener('animationend',e=>{if(e.animationName==='chipWeek')$('net').classList.remove('week')});
 
 /* ---------- weeks ---------- */
 const COLOR_NAMES=['amber','blue','magenta','green'];
@@ -1696,13 +1728,18 @@ function weekEnd(){
   fitBounds();
   if([2,3,5].includes(st.week)&&st.colors<city().maxColors){
     st.colors++;const c=st.colors-1;spawnPlant(c);spawnHouse(c);
-    // an alert names the new customers; the Plant tile pulses
+    // an alert names the new customers (the only message at the end of a week); the Plant tile pulses
     st.newType=c;st.newTypeNo=false;
     if(!previewing){const t=$('tPlant');t.classList.remove('pulse');void t.offsetWidth;t.classList.add('pulse')}
   }
-  news(()=>showStatement(W));
-  if(cash<0) hint('loss',`Building counts too: a week that builds a lot can lose cash. Each plant takes ${ECON.upMax} upgrades at most. After that you need a new plant, and each new plant costs more.`);
-  if(bill.fuel>0){const S=SRC();hint('fuel-'+city().source,`${S.burns||'Plants burn fuel'}: $${S.fuel} a week for each pip a plant sends. Fuel is in your weekly bills.`)}
+  // the first fuel bill of a city: a note in the statement (once for each player), not a separate message
+  const fk='fuel-'+city().source;
+  if(bill.fuel>0&&!seen[fk]&&!previewing){const S=SRC();W.note=`${S.burns||'Plants burn fuel'}: $${S.fuel} a week for each pip a plant sends.`;seen[fk]=1;try{localStorage.setItem(SEEN_KEY,JSON.stringify(seen))}catch(e){}}
+  // the first rise: a note in the statement (once for each player), not a hint
+  if(st.roseWeek&&!seen.rise&&!previewing){W.note=(W.note?W.note+' ':'')+'The town is full, so it grows up. Scaffolding shows a building that will rise and need more pips: add capacity to its network before it rises.';seen.rise=1;try{localStorage.setItem(SEEN_KEY,JSON.stringify(seen))}catch(e){}}
+  st.roseWeek=false;
+  // the statement waits behind the chip: no card opens by itself. Its tips (spare pips, a loss) stay in it.
+  st.lastW=W;st.stmtNew=true;chipWeek();
   allocate();updateHud();
 }
 function neediestColor(){
@@ -1817,7 +1854,7 @@ function tutStep(){
       if(!cardPlant){
         const bill=upkeep(),income=Math.round(houses.reduce((a,h)=>a+ECON.pay*WEEK*payOf(h),0));
         showStatement({wk:1,inc:income,bill:bill.total,bills:bill,build:0,cash:income-bill.total,up:0,nUp:0,plant:0,nPlant:0,cable:0});sfx.week();
-        coach('Every week ends with a statement card: what your customers paid, the bills, and what you spent on building. In a city, the chip next to your cash shows your profit a week. Stars count your profit, so short cables and few spare pips win.');go(10)}
+        coach('Every week ends with a statement: what your customers paid, the bills, and what you spent on building. In a city, the chip next to your cash shows your profit a week. It glows when a week ends: tap it to see the statement. Stars count your profit, so short cables and few spare pips win.');go(10)}
       break;
     case 10:
       if(T.t>(reduceMotion?3:8)){go(TUT_FINAL);$('stmt').hidden=true;
@@ -1897,6 +1934,8 @@ function updateHud(){
   if(cardPlant) updatePlantCard();
   if(!tut&&!st.over){updateAlert();checkHints();pumpHint();pumpNews()}
 }
+// a phone: the top bar has no room for the long star text
+const narrowHud=matchMedia('(max-width:440px)');
 // the money chip, the week line with its day dots, the star bar, and the breakdown when it is open
 function updateMoney(){
   const net=netWeek(),now=wallMs(),chip=$('net');
@@ -1914,8 +1953,9 @@ function updateMoney(){
   const C=city(),n=starsFor(C,st.score),nx=C.stars[n],prev=n?C.stars[n-1]:0;
   $('starsHud').textContent=starStr(n);
   $('starFill').style.width=(nx?Math.max(0,Math.min(1,(st.score-prev)/(nx-prev)))*100:100).toFixed(1)+'%';
-  const stxt=nx?`${fmt$(st.score)} of ${fmt$(nx)} for ${'★'.repeat(n+1)}`:`${fmt$(st.score)} · all three stars`;
-  if($('starTxt').textContent!==stxt)$('starTxt').textContent=stxt;
+  const full=nx?`${fmt$(st.score)} of ${fmt$(nx)} for ${'★'.repeat(n+1)}`:`${fmt$(st.score)} · all three stars`;
+  const stxt=!narrowHud.matches?full:nx?`${fmt$(st.score)} / ${fmt$(nx)}`:fmt$(st.score);
+  if($('starTxt').textContent!==stxt){$('starTxt').textContent=stxt;$('starTxt').title=full}
   if(!$('brk').hidden)fillBreakdown(net);
 }
 // the breakdown: income by customer type (dim ones in red), the all-lit bonus, the bills, the profit a week,
@@ -1937,60 +1977,59 @@ function fillBreakdown(net){
     `<div class="r tot"><span>Profit a week</span><b class="${net<0?'neg':'pos'}">${nbs$(net)}</b></div>`+
     (st.week===1?'<div class="r"><small>Week 1 has no bills. Bills start in week 2.</small></div>':'')+
     `<div class="nx">${cp?`Next +2 pips: <b>${nb$(upCost(cp))}</b>${upsOf(cp)>0?' (the cheapest plant)':''}`:`All plants at the max (${ECON.upMax} upgrades)`} · new plant: <b>${nb$(plantCost())}</b> (+${Math.round((ECON.plantMul-1)*100)}% each)</div>`+
-    `<div class="tip">${bestAction()}</div>`;
+    `<div class="tip">${bestAction()}</div>`+(st.lastW?`<button type="button" class="linkbtn stl" data-stmt>Week ${st.lastW.wk} statement</button>`:'');
   if($('brk').innerHTML!==html)$('brk').innerHTML=html;
 }
 function toggleBreakdown(open){
   const pop=$('brk');open=open===undefined?pop.hidden:open;
   pop.hidden=!open;$('net').setAttribute('aria-expanded',String(open));document.querySelector('.bar').classList.toggle('brkopen',open);if(open)updateMoney();
 }
-$('net').onclick=e=>{e.stopPropagation();toggleBreakdown()};
+// a tap on the chip: the new weekly statement first, if the player has not read it; else the breakdown
+$('net').onclick=e=>{e.stopPropagation();
+  if(!$('stmt').hidden&&$('stmt').dataset.kept){closeStatement();return}
+  if(st&&st.stmtNew&&st.lastW&&!tut){stmtRead();showStatement(st.lastW,true);return}
+  toggleBreakdown()};
+$('brk').addEventListener('click',e=>{if(e.target.closest('[data-stmt]')&&st.lastW){e.stopPropagation();stmtRead();showStatement(st.lastW,true)}});
 addEventListener('pointerdown',e=>{if(!$('brk').hidden&&!e.target.closest('#net,#brk'))toggleBreakdown(false)},true);
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('brk').hidden)toggleBreakdown(false)});
 
-/* ---------- the alert: one at a time, with the fix ----------
-   Debt first, then new customers, then a short colour. Each one shows once for each episode: a short
-   colour that the player closed stays closed until the colour is short again. */
-let alertKey='';const SHORT_WAIT=5;
+/* ---------- the alert: one at a time ----------
+   Debt first, then new customers. A short colour gets no alert: the map, the legend and the Plant tile show it.
+   The alert waits while another message shows, and it never moves the camera (it floats over the map). */
+let alertKey='';
 function pickAlert(){
   if(st.money>=0) st.debtNo=false;
   if(st.money<0&&!st.debtNo) return 'debt';
   if(st.newType>=0){const c=st.newType;if(st.newTypeNo||houses.some(h=>h.color===c&&h.powered))st.newType=-1;else return 'new'+c}
-  // a colour must stay short for SHORT_WAIT seconds of play: a short that the player fixes at once gets no alert
-  st.shortNo=st.shortNo||[];st.shortT0=st.shortT0||[];let best=-1,bn=0;
-  for(let c=0;c<st.colors;c++){const n=demOf(c)-capOf(c);
-    if(n<=0){st.shortNo[c]=false;st.shortT0[c]=null;continue}
-    if(st.shortT0[c]==null)st.shortT0[c]=st.t;
-    if(!st.shortNo[c]&&st.t-st.shortT0[c]>=SHORT_WAIT&&n>bn){bn=n;best=c}}
-  return best>=0?'short'+best:'';
+  return '';
+}
+// the feedback notices sit under the alert, so they never cover it
+function placeNotices(){
+  const a=$('alert'),n=$('notices');
+  n.style.top=a.hidden?'':Math.round(a.getBoundingClientRect().bottom+6)+'px';
 }
 function updateAlert(){
   const el=$('alert'),k=pickAlert();
-  if(!k){if(!el.hidden){el.hidden=true;alertKey=''}return}
+  if(!k){if(!el.hidden){el.hidden=true;alertKey='';placeNotices()}return}
+  if(el.hidden&&msgBusy('alert'))return;
   const net=netWeek();let html='',cls='alert';
   if(k==='debt'){
     html=`<b>In debt.</b> You cannot build until your cash is above $0. `+(net>0?`At ${nbs$(net)} a week: ${timeTo(-st.money,net)}.`:`<span class="mu">Your profit a week is below zero: erase cable that lights no home, or sell a spare plant.</span>`);
-  }else if(k.startsWith('new')){
+  }else{
     const c=+k.slice(3),T=TYPES[c];cls+=' info';
     html=`<b>New customers: ${T.name.toLowerCase()}.</b> Cable them to the ${COLOR_NAMES[c]} plant. A ${T.one} pays ${T.pay}× a home and needs ${pl(T.demand,'pip')}.<br><button class="fix" data-act="ok">Got it</button>`;
-  }else{
-    const c=+k.slice(5),T=TYPES[c],n=demOf(c)-capOf(c),dim=houses.filter(h=>h.color===c&&!h.powered&&h.share>0).length,p=fixPlant(c),price=upCost(p),nm=COLOR_NAMES[c];
-    html=`<b>${cap1(nm)} is ${pl(n,'pip')} short.</b> `+(dim?`${dim} ${dim===1?T.one:T.name.toLowerCase()} share the power, dim and pay less.`:`The next ${T.one} gets no power.`)+
-      (p?`<br><span class="mu">Add pips: hold ${/^[aeiou]/.test(nm)?'an':'a'} ${nm} plant, or drag a plant from the Plant tile.</span>`:`<br><span class="mu">The ${nm} plants are at the max. Drag a new plant from the Plant tile: ${fmt$(plantCost())}.</span>`)+
-      (p?`<br><button class="fix" data-act="up" data-c="${c}"${st.money<price?' disabled':''}>+2 pips · ${fmt$(price)}</button>`:'');
   }
   html+=`<button class="ax" data-act="x" aria-label="Close">✕</button>`;
   if(el.className!==cls)el.className=cls;
   if(el.innerHTML!==html)el.innerHTML=html;
   if(k!==alertKey){alertKey=k;el.hidden=false;el.style.animation='none';void el.offsetWidth;el.style.animation=''}
+  placeNotices();
 }
 $('alert').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;e.stopPropagation();
   const k=alertKey;
-  if(b.dataset.act==='up'){const p=fixPlant(+b.dataset.c);if(p)buyUpgrade(p)}
-  else if(k==='debt')st.debtNo=true;
+  if(k==='debt')st.debtNo=true;
   else if(k.startsWith('new'))st.newTypeNo=true;
-  else if(k.startsWith('short')){st.shortNo=st.shortNo||[];st.shortNo[+k.slice(5)]=true}
   updateHud();
 });
 
