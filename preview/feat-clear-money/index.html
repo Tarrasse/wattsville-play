@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head>
-<!-- wattsville-preview: feat/clear-money@4885247 -->
+<!-- wattsville-preview: feat/clear-money@4d8627c -->
 <meta name="robots" content="noindex"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Wattsville 3D</title><meta name="claude:viewport-fit-sides" content="cover"><link rel="stylesheet" href="fonts/fonts.css"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <style>
 /* Layout: one-screen game. Thin status bar on top, the survey-map canvas fills the middle, tool tray at the bottom. */
@@ -751,11 +751,11 @@ const bestFor=c=>{try{return +localStorage.getItem(BEST_KEY+c.id)||0}catch(e){re
    Bonuses: +$2 the first time a home is connected; +$5 for saving a home that was more than 60% dim.
    Spending: cable $1 a square, bridges $8 a water square (both refunded when erased), crossovers $10,
    plant upgrades (+2 pips) and new plants. An upgrade's price depends only on the level of that plant
-   (ECON.up for its first upgrade, ECON.upStep more for each next one); a new plant's price rises by a
+   (see stepCost), and each plant takes at most ECON.upMax upgrades; a new plant's price rises by a
    percentage with each plant bought.
    Stars: three targets for the profit of a run: the most cash the company had, less the money it started with.
    So a lean network beats a big wasteful one. All cities are open from the start. */
-const ECON={pay:0.25,allLit:1.25,cable:1,bridge:8,cross:10,up:15,upGrow:1.5,upFlat:3,upStep:0,plant:25,plantMul:1.2,first:2,saved:5};
+const ECON={pay:0.25,allLit:1.25,cable:1,bridge:8,cross:10,up:15,upGrow:1.5,upFlat:3,upStep:0,upMax:4,plant:25,plantMul:1.2,first:2,saved:5};
 // pacing: seconds a powered home takes to fully recover; an unconnected home to go dark; the brownout
 // dimming divisor; and how often homes appear (start, fastest, and how quickly it speeds up)
 const BAL={recover:30,dark:70,brown:40,spawnStart:14,spawnMin:6,spawnRamp:120,
@@ -790,9 +790,12 @@ const upsOf=p=>p.ups??Math.max(0,Math.round((p.cap-basePips(p.color))/2));
 // the price of the next +2 pips depends only on how often THAT plant was upgraded (k): steps k=0..ECON.upFlat
 // cost ECON.up each, then each step costs ECON.upGrow times the step before. The order of plants does not matter.
 const stepCost=k=>Math.round(ECON.up*ECON.upGrow**Math.max(0,k-ECON.upFlat)+ECON.upStep*k);
+// each plant takes at most ECON.upMax upgrades; after that, more pips need a new plant
+const atMax=p=>upsOf(p)>=ECON.upMax;
 // with no plant: the cheapest upgrade of all plants (of colour c when given)
-const cheapestUp=c=>{let best=null;for(const p of plants)if(c===undefined||p.color===c){const k=upsOf(p);if(!best||k<best.k)best={p,k}}return best?best.p:null};
-const upCost=p=>{if(!p)p=cheapestUp();return p?stepCost(upsOf(p)):stepCost(0)};
+const cheapestUp=c=>{let best=null;for(const p of plants)if((c===undefined||p.color===c)&&!atMax(p)){const k=upsOf(p);if(!best||k<best.k)best={p,k}}return best?best.p:null};
+// no plant (or a plant at the max) has no upgrade price: Infinity, so a new plant is always the cheaper choice
+const upCost=p=>{if(p===undefined)p=cheapestUp();return p&&!atMax(p)?stepCost(upsOf(p)):Infinity};
 const plantCost=()=>Math.round(ECON.plant*SRC().cost*Math.pow(ECON.plantMul,st.built));
 function earn(x){st.money+=x;st.weekIn=(st.weekIn||0)+x}
 // the score of a run is its profit: the most cash the company has had, less the money it started with
@@ -1078,6 +1081,7 @@ function eraseCell(i){
 }
 // buy +2 homes of capacity on a plant
 function buyUpgrade(p){
+  if(atMax(p)){sfx.thud();notice(`This plant has all ${ECON.upMax} upgrades. Build a new plant for more pips.`);return false}
   const c=upCost(p);if(!spend(c,'+2 pips cost')) return false;
   // the hold label and the card showed the price: no float
   p.cap+=2;p.ups=upsOf(p)+1;st.ups++;p.paid=(p.paid||0)+c;st.wkUp=(st.wkUp||0)+c;st.wkUpN=(st.wkUpN||0)+1;
@@ -1118,13 +1122,16 @@ function updatePlantCard(){
   if(!plants.includes(p)||st.over||!$('intro').hidden){closePlantCard();return}
   const T=TYPES[p.color],up=plantUpkeep(p),fuel=Math.round(plantFuel(p)),inc=Math.round(plantIncome(p)),cost=up+fuel,net=inc-cost,spare=p.cap-p.load,uc=upCost(p);
   $('pcTitle').textContent=`${COLOR_NAMES[p.color][0].toUpperCase()+COLOR_NAMES[p.color].slice(1)} plant · ${T.name.toLowerCase()}, ${T.volt}`;
-  $('pcPips').textContent=`Sends ${p.load} of ${p.cap} pips`+(spare>0?` · ${spare} spare`:'');
+  $('pcPips').textContent=`Sends ${p.load} of ${p.cap} pips`+(spare>0?` · ${spare} spare`:'')+` · upgrades ${upsOf(p)} of ${ECON.upMax}`;
   // two short lines: what it earns, what it costs (spare pips named), and the result
   const html=`Earns ${nb$(inc)}/wk \u00b7 costs ${nb$(cost)}/wk${spare>0?` (${spare} spare pip${spare>1?'s':''}: ${nb$(spare*UPKEEP.pip)})`:''}<br>`+
     `<b>\u2192 ${nbs$(net)}/wk</b>${fuel?` <span class="mu">incl. fuel ${nb$(fuel)}</span>`:''}`;
   if($('pcWeek').innerHTML!==html)$('pcWeek').innerHTML=html;
   $('pcWeek').classList.toggle('loss',net<0);
-  $('pcUp').textContent=`+2 pips \u00b7 ${fmt$(uc)} \u00b7 \u2212$${2*UPKEEP.pip}/wk`;$('pcUp').setAttribute('aria-label',`Upgrade: 2 more pips for ${fmt$(uc)}, upkeep $${2*UPKEEP.pip} more a week. The next one costs ${fmt$(stepCost(upsOf(p)+1))}`);$('pcUp').disabled=st.money<uc;
+  const mx=atMax(p),last=upsOf(p)+1>=ECON.upMax;
+  $('pcUp').textContent=mx?'Max \u00b7 build a new plant':`+2 pips \u00b7 ${fmt$(uc)} \u00b7 \u2212$${2*UPKEEP.pip}/wk`;
+  $('pcUp').setAttribute('aria-label',mx?`This plant has all ${ECON.upMax} upgrades. Build a new plant for more pips.`:`Upgrade ${upsOf(p)+1} of ${ECON.upMax}: 2 more pips for ${fmt$(uc)}, upkeep $${2*UPKEEP.pip} more a week.`+(last?' This is the last upgrade.':` The next one costs ${fmt$(stepCost(upsOf(p)+1))}`));
+  $('pcUp').disabled=mx||st.money<uc;
   $('pcSell').textContent=`Sell \u00b7 +$${sellValue(p)} \u00b7 saves $${cost}/wk`;
   // the tutorial only shows the buttons: buying or selling would change the lesson's town
   if(tut) $('pcUp').disabled=$('pcSell').disabled=true; else $('pcSell').disabled=false;
@@ -1255,8 +1262,9 @@ cv.addEventListener('pointerdown',e=>{
   // holding a plant without moving off it upgrades it; moving draws a cable as before
   const p=occ[i];
   if(p&&p.kind==='plant'&&st.mode==='draw'&&(!tut||tut.step>=8)){
-    drag.hold={p,i,t0:performance.now()};
-    if(!tut) drag.hold.timer=setTimeout(()=>{
+    drag.hold={p,i,t0:performance.now(),max:atMax(p)};
+    // a plant at the max: the hold only shows the bubble, it buys nothing
+    if(!tut&&!drag.hold.max) drag.hold.timer=setTimeout(()=>{
       if(!drag||!drag.hold||drag.hold.p!==p) return;
       drag=null;buyUpgrade(p);updateHud();
     },HOLD_MS);
@@ -1544,12 +1552,13 @@ let netFlash=null;
 function markBuild(){if(!st)return;const now=wallMs();if(!netFlash||now>netFlash.until||netFlash.st!==st)netFlash={base:netWeek(),st};netFlash.until=now+CHIP_MS}
 const pipWeek=c=>ECON.pay*WEEK*TYPES[c].pay/TYPES[c].demand*(st.allLit?ECON.allLit:1);
 // the plant the short alert upgrades: the cheapest in an overloaded network of that colour
-function fixPlant(c){const over=plants.some(q=>q.color===c&&q.over);let best=null;for(const p of plants)if(p.color===c&&(p.over||!over)&&(!best||upsOf(p)<upsOf(best)))best=p;return best}
+// plants at the max are skipped: null means only a new plant adds pips
+function fixPlant(c){const over=plants.some(q=>q.color===c&&q.over);let best=null;for(const p of plants)if(p.color===c&&(p.over||!over)&&!atMax(p)&&(!best||upsOf(p)<upsOf(best)))best=p;return best}
 // one best action, for the breakdown: a short colour, customers that wait for cable, else the biggest bill
 function bestAction(){
   for(let c=0;c<st.colors;c++){const n=demOf(c)-capOf(c);if(n>0){
     const p=fixPlant(c),lost=houses.filter(h=>h.color===c&&!h.powered&&h.share>0).reduce((a,h)=>a+ECON.pay*WEEK*payOf(h)*(1-h.share),0);
-    return `<b>${cap1(COLOR_NAMES[c])} is ${pl(n,'pip')} short.</b> `+(lost>=1?`Dim customers pay ${nb$(lost)} less a week. `:'')+(p?`+2 pips cost ${nb$(upCost(p))}.`:'')}}
+    return `<b>${cap1(COLOR_NAMES[c])} is ${pl(n,'pip')} short.</b> `+(lost>=1?`Dim customers pay ${nb$(lost)} less a week. `:'')+(p?`+2 pips cost ${nb$(upCost(p))}.`:`Its plants are at the max. A new plant costs ${nb$(plantCost())}.`)}}
   const wait=houses.filter(h=>!(h.share>0)).length;
   if(wait) return `<b>${pl(wait,'customer')} ${wait===1?'waits':'wait'} for cable.</b> Each lit home pays ${nb$(ECON.pay*WEEK)} a week.`;
   const b=weekBill(),spare=plants.reduce((a,p)=>a+p.cap-p.load,0),big=[['cable',b.cable],['plants',b.plants],['fuel',b.fuel]].sort((x,y)=>y[1]-x[1])[0][0];
@@ -1568,7 +1577,7 @@ function statementAction(W){
     const parts=[];if(W.nUp)parts.push(`${pl(W.nUp,'upgrade')} ${nb$(W.up)}`);if(W.nPlant)parts.push(`${pl(W.nPlant,'new plant')} ${nb$(W.plant)}`);if(W.cable>=1)parts.push(`cable ${nb$(W.cable)}`);
     return `<b>Why:</b> building cost more than the week earned${parts.length?': '+parts.join(', '):''}. The new pips and cable pay it back in the next weeks.`;
   }
-  for(let c=0;c<st.colors;c++){const n=demOf(c)-capOf(c);if(n>0){const p=fixPlant(c);return `<b>${cap1(COLOR_NAMES[c])} is ${pl(n,'pip')} short.</b> Its customers dim and pay less.${p?` +2 pips cost ${nb$(upCost(p))}.`:''}`}}
+  for(let c=0;c<st.colors;c++){const n=demOf(c)-capOf(c);if(n>0){const p=fixPlant(c);return `<b>${cap1(COLOR_NAMES[c])} is ${pl(n,'pip')} short.</b> Its customers dim and pay less.${p?` +2 pips cost ${nb$(upCost(p))}.`:` Its plants are at the max: build a new plant (${nb$(plantCost())}).`}`}}
   const spare=plants.reduce((a,p)=>a+p.cap-p.load,0);
   if(spare>0) return `<b>Tip:</b> ${pl(spare,'spare pip')} cost${spare===1?'s':''} ${nb$(spare*UPKEEP.pip)} a week. Buy pips only when a colour is short.`;
   return '';
@@ -1617,7 +1626,7 @@ function weekEnd(){
     if(!previewing){const t=$('tPlant');t.classList.remove('pulse');void t.offsetWidth;t.classList.add('pulse')}
   }
   news(()=>showStatement(W));
-  if(cash<0) hint('loss','Building counts too: a week that builds a lot can lose cash. Each plant’s next upgrade costs more than its last, and each new plant costs more.');
+  if(cash<0) hint('loss',`Building counts too: a week that builds a lot can lose cash. Each plant takes ${ECON.upMax} upgrades at most. After that you need a new plant, and each new plant costs more.`);
   if(bill.fuel>0){const S=SRC();hint('fuel-'+city().source,`${S.burns||'Plants burn fuel'}: $${S.fuel} a week for each pip a plant sends. Fuel is in your weekly bills.`)}
   allocate();updateHud();
 }
@@ -1851,7 +1860,7 @@ function fillBreakdown(net){
     `<div class="sep"></div>`+
     `<div class="r tot"><span>Profit a week</span><b class="${net<0?'neg':'pos'}">${nbs$(net)}</b></div>`+
     (st.week===1?'<div class="r"><small>Week 1 has no bills. Bills start in week 2.</small></div>':'')+
-    `<div class="nx">Next +2 pips: <b>${nb$(upCost(cp))}</b>${cp&&upsOf(cp)>0?' (the cheapest plant)':''} · new plant: <b>${nb$(plantCost())}</b> (+${Math.round((ECON.plantMul-1)*100)}% each)</div>`+
+    `<div class="nx">${cp?`Next +2 pips: <b>${nb$(upCost(cp))}</b>${upsOf(cp)>0?' (the cheapest plant)':''}`:`All plants at the max (${ECON.upMax} upgrades)`} · new plant: <b>${nb$(plantCost())}</b> (+${Math.round((ECON.plantMul-1)*100)}% each)</div>`+
     `<div class="tip">${bestAction()}</div>`;
   if($('brk').innerHTML!==html)$('brk').innerHTML=html;
 }
@@ -1891,7 +1900,7 @@ function updateAlert(){
   }else{
     const c=+k.slice(5),T=TYPES[c],n=demOf(c)-capOf(c),dim=houses.filter(h=>h.color===c&&!h.powered&&h.share>0).length,p=fixPlant(c),price=upCost(p),nm=COLOR_NAMES[c];
     html=`<b>${cap1(nm)} is ${pl(n,'pip')} short.</b> `+(dim?`${dim} ${dim===1?T.one:T.name.toLowerCase()} share the power, dim and pay less.`:`The next ${T.one} gets no power.`)+
-      `<br><span class="mu">Add pips: hold ${/^[aeiou]/.test(nm)?'an':'a'} ${nm} plant, or drag a plant from the Plant tile.</span>`+
+      (p?`<br><span class="mu">Add pips: hold ${/^[aeiou]/.test(nm)?'an':'a'} ${nm} plant, or drag a plant from the Plant tile.</span>`:`<br><span class="mu">The ${nm} plants are at the max. Drag a new plant from the Plant tile: ${fmt$(plantCost())}.</span>`)+
       (p?`<br><button class="fix" data-act="up" data-c="${c}"${st.money<price?' disabled':''}>+2 pips · ${fmt$(price)}</button>`:'');
   }
   html+=`<button class="ax" data-act="x" aria-label="Close">✕</button>`;
@@ -2091,10 +2100,11 @@ function draw(now){
   if(drag&&drag.hold&&!tut){
     const h=drag.hold,f=Math.min(1,(performance.now()-h.t0)/HOLD_MS),x=h.p.x+.5,y=h.p.y+.5;
     if(f>.15){
-      ctx.strokeStyle=theme.nets[h.p.color];ctx.lineWidth=.09;ctx.lineCap='round';
-      ctx.beginPath();ctx.arc(x,y,.72,-Math.PI/2,-Math.PI/2+f*Math.PI*2);ctx.stroke();
+      // a plant at the max gets no ring: the hold buys nothing
+      if(!h.max){ctx.strokeStyle=theme.nets[h.p.color];ctx.lineWidth=.09;ctx.lineCap='round';
+        ctx.beginPath();ctx.arc(x,y,.72,-Math.PI/2,-Math.PI/2+f*Math.PI*2);ctx.stroke()}
       ctx.font='600 0.3px '+getComputedStyle(document.body).fontFamily;ctx.textAlign='center';ctx.textBaseline='bottom';
-      ctx.fillStyle=theme.ink;ctx.fillText(`+2 pips · ${fmt$(upCost(h.p))}`,x,y-.82);
+      ctx.fillStyle=theme.ink;ctx.fillText(h.max?'Max':`+2 pips · ${fmt$(upCost(h.p))}`,x,y-.82);
     }
   }
   // hover
@@ -2689,11 +2699,12 @@ const wheelKey=p=>WHEEL_SIDES.reduce((a,[dx,dy],k)=>{const nx=p.x+dx,ny=p.y+dy;r
 // inside the lot: they never reach a neighbour's square, and they draw over the models (see PIP).
 const PIP_Z=.33;
 function updatePips(v,p){
-  const n=p.cap+(p.extra||0),key=n+':'+p.cap+':'+p.load+':'+p.over;if(key===v.pk)return;v.pk=key;emptyGroup(v.pg);
+  const n=p.cap+(p.extra||0),mx=p.kind==='plant'&&atMax(p),key=n+':'+p.cap+':'+p.load+':'+p.over+':'+mx;if(key===v.pk)return;v.pk=key;emptyGroup(v.pg);
   if(!n)return;
   const w=Math.min(.14,.8/(n*1.35-.35)),gap=w*.35,tot=n*w+(n-1)*gap,geo=G('pip'+w.toFixed(3),()=>box(w,.02,.12));
   const add=(geo,m,x,y,order)=>{const o=mesh(geo,m,x,y,PIP_Z,v.pg,false);o.receiveShadow=false;o.renderOrder=order};
-  add(G('pipEdge'+tot.toFixed(3),()=>box(tot+.09,.01,.21)),PIP.edge,0,.045,30);
+  // a plant at the max upgrade gets a dark frame around its pips: the plate is full
+  add(G('pipEdge'+tot.toFixed(3)+mx,()=>box(tot+(mx?.13:.09),.01,mx?.25:.21)),mx?PIP.ink:PIP.edge,0,.045,30);
   add(G('pipPlate'+tot.toFixed(3),()=>box(tot+.07,.01,.19)),PIP.plate,0,.05,31);
   for(let k=0;k<n;k++)add(geo,k>=p.cap?PIP.over:k<p.load?(p.over?PIP.danger:PIP.ink):PIP.free,-tot/2+w/2+k*(w+gap),.06,32);
 }
@@ -2892,7 +2903,8 @@ function overlay2D(now){
   // holding a plant: the price of its next 2 pips, the upkeep they add, and the price of the step after
   if(drag&&drag.hold&&!tut){const h=drag.hold,f=Math.min(1,(performance.now()-h.t0)/HOLD_MS);
     if(f>.15){const [sx,sy]=worldToScreen(h.p.x+.5,h.p.y+.5,1.2),k=upsOf(h.p);
-      bubble(sx,sy,[[[`+2 pips · ${fmt$(stepCost(k))} · −$${2*UPKEEP.pip}/wk`,ink]],[[`next one ${fmt$(stepCost(k+1))}`]]])}}
+      if(h.max) bubble(sx,sy,[[[`Max · ${ECON.upMax} of ${ECON.upMax} upgrades`,ink]],[[`New plant for more pips: ${fmt$(plantCost())}`]]]);
+      else bubble(sx,sy,[[[`Upgrade ${k+1} of ${ECON.upMax} · +2 pips · ${fmt$(stepCost(k))}`,ink]],[[`−$${2*UPKEEP.pip}/wk · `+(k+1>=ECON.upMax?'the last one':`next one ${fmt$(stepCost(k+1))}`)]]])}}
   // a plant dragged from the dock: its price, its upkeep, and what its pips light; or why a release there does nothing
   if(pdrag&&pdrag.on&&pdrag.i>=0&&!st.paused){const i=pdrag.i,[sx,sy0]=worldToScreen(cx(i)+.5,cy(i)+.5,1.1),sy=sy0-(pdrag.touch?34:6);
     if(pdrag.why) bubble(sx,sy,[[[pdrag.why,bad]]]);
@@ -2964,31 +2976,63 @@ function withShowcaseState(fn){
 /* The menu's player, as in the app: each second it buys capacity for a short color, upgrades the most
    overloaded network, then cables every unconnected customer to the nearest network of its color. */
 const nbr4=i=>{const x=cx(i),y=cy(i),out=[];if(x>0)out.push(i-1);if(x<COLS-1)out.push(i+1);if(y>0)out.push(i-COLS);if(y<ROWS-1)out.push(i+COLS);return out};
-function landNear(h){
-  for(let r=1;r<=3;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+function landNear(h,R=3){
+  for(let r=1;r<=R;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
     const x=h.x+dx,y=h.y+dy;
     if(Math.max(Math.abs(dx),Math.abs(dy))===r&&x>=0&&y>=0&&x<COLS&&y<ROWS&&canBuildPlant(x,y)) return {x,y};
   }
   return null;
 }
+// the squares of the network of colour c that holds square i
+function netSquares(i,c){
+  const net=new Uint8Array(N),q=[i];net[i]=1;
+  for(let k=0;k<q.length;k++)for(const j of nbr4(q[k]))if(!net[j]&&links.has(lk(q[k],j,c))){net[j]=1;q.push(j)}
+  return net;
+}
+// the cheapest cable from a new plant to the network of customer h
+function joinNet(p,h){
+  if(!p||p.kind!=='plant')return;
+  const c=p.color,net=netSquares(idx(h.x,h.y),c);
+  const start=idx(p.x,p.y),prev=new Int32Array(N).fill(-2),cost=new Float64Array(N);prev[start]=-1;
+  const q=[start];let end=-1;
+  for(let k=0;k<q.length&&end<0;k++){const i=q[k];
+    for(const j of nbr4(i)){if(prev[j]!==-2||!inBounds(cx(j),cy(j)))continue;
+      if(net[j]){prev[j]=i;end=j;break}
+      const e=entryCost(j,c);if(e<0||occ[j])continue;prev[j]=i;cost[j]=cost[i]+e;q.push(j)}}
+  if(end<0||cost[prev[end]]>st.money)return;
+  let last=-1;for(let i=end;i>=0;i=prev[i]){if(!placeAt(i,c))break;if(last>=0)links.add(lk(last,i,c));last=i}
+  allocate();
+}
+// a new plant near customer h, joined to its network when h has one: for a network whose plants are all at the max
+function plantNear(h){
+  if(st.money<plantCost()+5)return false;
+  const sq=landNear(h,6);if(!sq)return false;
+  const pc=st.plantColor;st.plantColor=h.color;const ok=buyPlant(idx(sq.x,sq.y));st.plantColor=pc;
+  if(ok&&h.share>0)joinNet(occ[idx(sq.x,sq.y)],h);
+  return ok;
+}
 function autoBuy(){
   for(let c=0;c<st.colors;c++){
     if(demOf(c)<=capOf(c)) continue;
-    const waiting=houses.find(h=>h.color===c&&!(h.share>0));
     // an upgrade's price depends on the plant's level: compare a new plant with the cheapest upgrade where this colour is short
+    const waiting=houses.find(h=>h.color===c&&!(h.share>0));
     const cp=fixPlant(c),uc=upCost(cp);
-    const sq=plantCost()<uc&&waiting&&st.money>=plantCost()+5?landNear(waiting):null;
-    if(sq){const pc=st.plantColor;st.plantColor=c;buyPlant(idx(sq.x,sq.y));st.plantColor=pc}
-    else if(cp&&st.money>=uc+5) buyUpgrade(cp);
+    if(waiting&&plantCost()<uc&&plantNear(waiting)) continue;
+    if(cp&&st.money>=uc+5) buyUpgrade(cp);
   }
 }
 // allocate() puts a network's missing pips on its first plant
 function autoUpgrade(){
   allocate();
-  const worst=plants.filter(p=>p.extra>0).sort((a,b)=>b.extra-a.extra)[0];
-  // the cheapest plant of an overloaded network of that colour
-  const p=worst&&fixPlant(worst.color);
-  if(p&&st.money>=upCost(p)+10) buyUpgrade(p);
+  const worst=plants.filter(p=>p.extra>0).sort((a,b)=>b.extra-a.extra)[0];if(!worst)return;
+  // the cheapest plant of that network that can still take an upgrade
+  const net=netSquares(idx(worst.x,worst.y),worst.color);let p=null;
+  for(const q of plants)if(q.color===worst.color&&net[idx(q.x,q.y)]&&!atMax(q)&&(!p||upsOf(q)<upsOf(p)))p=q;
+  if(p){if(st.money>=upCost(p)+10)buyUpgrade(p);return}
+  // all its plants are at the max: a new plant next to one of its dim customers (two tries keep the bot fast)
+  if(st.money<plantCost()+5)return;
+  const dim=houses.filter(h=>h.color===worst.color&&!h.powered&&net[idx(h.x,h.y)]);
+  for(let k=0;k<Math.min(2,dim.length);k++)if(plantNear(dim[rnd(0,dim.length-1)]))return;
 }
 // the price of cable through a square, or -1 when the player cannot pass it
 function entryCost(i,c){
