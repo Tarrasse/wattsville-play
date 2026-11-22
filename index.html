@@ -452,6 +452,7 @@ body.in-menu .notices{display:none}
           <li>Each plant powers as many homes as its pips. Too many homes on one network share the power: they all dim and pay less. Hold a plant to add 2 pips, or tap it to see its week, upgrade it or sell it. A plant takes 3 upgrades at most; after that, build a new plant.</li>
           <li>Each color is a voltage for one kind of customer: amber for homes, blue for factories, magenta for tram depots, green for charging stations. Factories and depots use 2 pips but pay more.</li>
           <li>Each lit home pays $30 a week; with every home lit, pay is ×1.25. Each week ends with bills for cable, plants and fuel. The chip next to your cash shows your profit a week: tap it for the details. It glows when a week ends: tap it to see the week's statement.</li>
+          <li>The town has a size limit. When it has no more room, it grows up: a home becomes an apartment block, then a tower block, and other customers get more floors. Each level needs more pips and pays more. Scaffolding and a <b>+</b> show over a building for a few seconds before it rises: add capacity to its network, or it browns out.</li>
           <li>Stars count your profit: your best cash, less the start cash. Unlit homes slowly dim; if one goes fully dark, the game ends.</li>
         </ul>
         <button class="secondary" id="tutBtn">Play the tutorial</button>
@@ -689,6 +690,9 @@ function inBounds(x,y){const b=st.bounds;return x>=b.x0&&x<=b.x1&&y>=b.y0&&y<=b.
 // Each map is modelled on a real city in the year its first public electricity supply switched on.
 // Shapes are in squares from the map centre (x right, y down). The first plant sits roughly where the
 // historic station stood relative to the old town and its water.
+// area: the largest town, [short side, long side] in squares. It is the same on every screen, so scores
+// compare; the long side follows the screen's long side. 11 squares across keep a whole town on a phone
+// (390 px wide) with squares of about 28 px. When the town has no more room, its buildings grow taller.
 function segDist(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?((px-ax)*dx+(py-ay)*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(px-ax-t*dx,py-ay-t*dy)}
 function river(pts,w){return (x,y)=>{for(let k=0;k<pts.length-1;k++)if(segDist(x,y,pts[k][0],pts[k][1],pts[k+1][0],pts[k+1][1])<w/2)return true;return false}}
 const anyOf=(...fs)=>(x,y)=>fs.some(f=>f(x,y));
@@ -696,36 +700,36 @@ const CITIES=[
   {id:'godalming',name:'Godalming',year:1881,place:'Surrey, England',source:'hydro',
    fact:'A water wheel at Westbrook Mill on the River Wey lit the town’s streets from September 1881.',
    why:'The world’s first public electricity supply: anyone in the town could ask to be connected, not only one mill or one house.',
-   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,stars:[1250,10000,12500],
+   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,area:[11,24],stars:[1500,12750,13750],
    water:river([[-30,3],[-14,2],[-6,4],[2,3],[10,5],[18,4],[30,5]],1.6)},
   {id:'newyork',name:'New York',year:1882,place:'Lower Manhattan',source:'coal',
    fact:'Edison’s Pearl Street Station burned coal to turn its dynamos, and switched on for about 85 customers on 4 September 1882.',
    why:'The first central power station: one plant, cables under the streets and a meter for each paying customer. Power companies still work this way.',
-   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,stars:[1250,10000,11000],
+   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1000,4250,5250],
    // Manhattan narrows to its southern tip between the Hudson (west) and the East River (east)
    water:(x,y)=>{const s=Math.max(0,y-2)*0.6,L=-8+s,R=7-s;return (x<=L&&x>L-3)||(x>=R&&x<R+2)||y>=9}},
   {id:'askov',name:'Askov',year:1891,place:'Jutland, Denmark',source:'wind',
    fact:'Poul la Cour built test wind turbines at the Askov folk high school from 1891, and trained the first “wind electricians”.',
    why:'La Cour measured the wind like a scientist and showed that farms and villages could make their own power. Denmark still leads the world in wind power.',
-   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,stars:[1500,9750,10750],
+   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,area:[11,24],stars:[1500,5750,7500],
    // open farmland with a small lake and a stream
    water:anyOf((x,y)=>Math.hypot((x+11)/1.4,y-6)<2.4,river([[-11,6],[-4,9],[4,10],[30,12]],1.0))},
   {id:'niagara',name:'Niagara Falls',year:1896,place:'New York, USA',source:'hydro',
    fact:'From 16 November 1896, the Adams Power Plant at Niagara Falls sent AC power to Buffalo, about 30 km away.',
    why:'Niagara proved that alternating current (AC) can carry power far from where it is made. It ended the “war of the currents”: the grids of the world use AC.',
-   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,stars:[750,7000,9500],
+   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,area:[11,24],stars:[1000,1750,6000],
    // the Niagara River runs north past the town
    water:river([[-4,-20],[-3,-8],[-1,-2],[1,4],[2,20]],3.2)},
   {id:'obninsk',name:'Obninsk',year:1954,place:'Kaluga region, USSR',source:'nuclear',
    fact:'On 27 June 1954 the Obninsk plant became the first nuclear power station to supply an electricity grid.',
    why:'Obninsk started the nuclear age of electricity: a little fuel makes a lot of power, with no smoke. France now gets most of its electricity this way.',
-   plant:[-6,-3],cable:50,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[750,9750,10750],
+   plant:[-6,-3],cable:50,bridges:3,cross:1,spawnMul:1,maxColors:4,area:[11,24],stars:[250,2500,3500],
    // the Protva river runs along the north of the town
    water:river([[-30,-5],[-14,-4],[-6,-6],[2,-5],[10,-7],[30,-6]],2)},
   {id:'dubai',name:'Dubai',year:1961,place:'Deira and Bur Dubai',source:'gas',
    fact:'The Dubai Electricity Company began supplying Deira in 1961. Today, Dubai’s power stations burn natural gas.',
    why:'Dubai grew from a small trading town into a city of millions on power from oil and gas. Its gas plants also turn seawater into drinking water.',
-   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,stars:[750,6500,10250],
+   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,area:[11,24],stars:[1250,12500,13500],
    // the gas pipeline comes in from the west and runs through the town, south of the Creek
    pipe:[[-18,-3],[-7,-2],[-3,2],[4,4],[14,3],[22,-1]],
    // the Gulf coast to the north; the Creek divides Deira from Bur Dubai and ends in a lagoon
@@ -766,6 +770,13 @@ const ECON={pay:0.25,allLit:1.25,cable:1,bridge:8,cross:10,up:15,upGrow:1.5,upFl
 const BAL={recover:30,dark:70,brown:40,spawnStart:14,spawnMin:6,spawnRamp:120,
   // rising demand: first purchase after growStart seconds; then every growEvery seconds, shrinking by growFaster a week
   growStart:150,growEvery:46,growFaster:2,growMin:15};
+/* Density: when the town is at its area cap and has little room left, it grows upward. A building rises a level
+   (home, apartment block, tower block); each level multiplies the base demand (mul), and the pay with it.
+   Before it rises, it shows scaffolding and a "+" for warn seconds, so the player can add capacity first.
+   lo..hi: the chance that new demand goes up instead of out, from a town with room (room or more free spaced lots)
+   to a full one. tower: the first week a building can rise to level 2. From week lotWeek, a new home or
+   customer can arrive one level up, with a chance that grows by lotStep a week to lotMax. */
+const DENSE={mul:[1,2,3],warn:12,lo:.25,hi:.85,room:30,tower:7,lotWeek:6,lotStep:.08,lotMax:.35};
 // weekly running costs: per cable square, per bridge square, per crossover; a plant pays a base amount
 // and an amount for each pip of capacity, used or not, so spare capacity costs money
 const UPKEEP={cable:1.2,bridge:5,cross:4,plant:12,pip:6};
@@ -780,13 +791,14 @@ function upkeep(){
    representative labels (they varied by country and era). Big customers use more plant capacity
    (pips) but pay more. weight = how often each type appears once it is in play. */
 const TYPES=[
-  {name:'Homes',one:'home',volt:'220 V',demand:1,pay:1,weight:6,plantCap:3,maxExtra:1,buys:['electric fan','radio','electric iron','refrigerator','washing machine','television'],fact:'Homes take low-voltage power for their lamps.'},
-  {name:'Factories',one:'factory',volt:'380 V three-phase',demand:2,pay:2.2,weight:3,plantCap:4,maxExtra:2,buys:['new motor line','electric furnace','night shift'],fact:'Three-phase power drives the motors in workshops and mills.'},
-  {name:'Tram depots',one:'tram depot',volt:'600 V DC',demand:2,pay:2.1,weight:2,plantCap:4,maxExtra:1,buys:['longer trams','a new route'],fact:'Siemens ran the first electric tram in Lichterfelde, Berlin, on 16 May 1881.'},
-  {name:'Charging stations',one:'charging station',volt:'DC',demand:1,pay:1.3,weight:2,plantCap:3,maxExtra:1,buys:['a second charger','faster charging'],fact:'New York\u2019s Electrobat cabs (1897) swapped batteries at a station on Broadway.'}
+  {name:'Homes',one:'home',ups:[['apartment block','apartment blocks'],['tower block','tower blocks']],volt:'220 V',demand:1,pay:1,weight:6,plantCap:3,maxExtra:1,buys:['electric fan','radio','electric iron','refrigerator','washing machine','television'],fact:'Homes take low-voltage power for their lamps.'},
+  {name:'Factories',one:'factory',ups:[['big factory','big factories'],['steel works','steel works']],volt:'380 V three-phase',demand:2,pay:2.2,weight:3,plantCap:4,maxExtra:2,buys:['new motor line','electric furnace','night shift'],fact:'Three-phase power drives the motors in workshops and mills.'},
+  {name:'Tram depots',one:'tram depot',ups:[['big depot','big depots'],['tram hub','tram hubs']],volt:'600 V DC',demand:2,pay:2.1,weight:2,plantCap:4,maxExtra:1,buys:['longer trams','a new route'],fact:'Siemens ran the first electric tram in Lichterfelde, Berlin, on 16 May 1881.'},
+  {name:'Charging stations',one:'charging station',ups:[['charging hub','charging hubs'],['charging garage','charging garages']],volt:'DC',demand:1,pay:1.3,weight:2,plantCap:3,maxExtra:1,buys:['a second charger','faster charging'],fact:'New York\u2019s Electrobat cabs (1897) swapped batteries at a station on Broadway.'}
 ];
-// a customer's demand grows as it buys appliances (h.extra); pay grows with it
-const dmd=h=>TYPES[h.color].demand+(h.extra||0);
+// a customer's demand grows as it buys appliances (h.extra) and as its building grows taller (h.lvl); pay grows with it
+const baseDmd=h=>TYPES[h.color].demand*DENSE.mul[h.lvl||0];
+const dmd=h=>baseDmd(h)+(h.extra||0);
 const payOf=h=>TYPES[h.color].pay*dmd(h)/TYPES[h.color].demand;
 // An upgrade's price depends only on the plant's own level: the k-th upgrade of any plant costs the same,
 // whatever was bought before. (An old save has no p.ups: its level comes from its pips.)
@@ -936,11 +948,66 @@ function freeCell(minD){
   }
   return null;
 }
-function spawnHouse(color){
+function spawnHouse(color,spaced){
   // pick a customer type by its weight; demand doesn't follow supply, so the player manages capacity
   if(color===undefined){let tot=0;for(let c=0;c<st.colors;c++)tot+=TYPES[c].weight;let r=Math.random()*tot;color=0;
     for(let c=0;c<st.colors;c++){r-=TYPES[c].weight;if(r<=0){color=c;break}}}
-  const p=freeCell(2)||freeCell(1);if(p){const h=addEntity('house',color,p.x,p.y);ensureSupply(color);return h}
+  const p=spaced?freeCell(2):freeCell(2)||freeCell(1);if(!p) return;
+  const h=addEntity('house',color,p.x,p.y);
+  // later in a run, a new customer can arrive in a taller building
+  if(!tut&&st.week>=DENSE.lotWeek&&Math.random()<Math.min(DENSE.lotMax,(st.week-DENSE.lotWeek+1)*DENSE.lotStep)) h.lvl=1;
+  ensureSupply(color);return h;
+}
+/* ---------- density: the town grows up, not only out ---------- */
+// free lots with a square of space all around, where a new customer can arrive (the screen's controls do not count)
+function roomLeft(){
+  const b=st.bounds;let n=0;
+  for(let y=b.y0;y<=b.y1;y++)for(let x=b.x0;x<=b.x1;x++){const i=idx(x,y);
+    if(!water[i]&&!occ[i]&&!wires[i].length&&!cross[i]&&!inPlantZone(x,y)&&farFromEntities(x,y,2))n++}
+  return n;
+}
+const riseDmd=h=>TYPES[h.color].demand*(DENSE.mul[(h.lvl||0)+1]-DENSE.mul[h.lvl||0]);
+// the demand a customer will add when its building rises (0 when it is not rising)
+const soonDmd=h=>h.upAt?riseDmd(h):0;
+const demSoon=c=>houses.filter(h=>h.color===c).reduce((a,h)=>a+dmd(h)+soonDmd(h),0);
+// The town grows: a new customer on a free lot, or, when room is short, a building rises a level.
+// Returns the demand it adds, so the next arrival waits longer after a big one.
+function growTown(){
+  if(atCap()){const r=roomLeft(),p=DENSE.lo+(DENSE.hi-DENSE.lo)*(1-Math.min(1,r/DENSE.room));
+    if(Math.random()<p){const d=densify();if(d) return d}}
+  const h=spawnHouse(undefined,true);if(h) return dmd(h);
+  const d=densify();if(d) return d;
+  const h2=spawnHouse();return h2?dmd(h2):0;
+}
+// pick a building to rise: lower buildings first, and not one that arrived a moment ago
+function densify(){
+  const top=st.week>=DENSE.tower?2:1,pool=[];
+  for(const h of houses)if(!h.upAt&&!h.dead&&(h.lvl||0)<top&&st.t-h.born>40)for(let k=(h.lvl||0)?1:3;k>0;k--)pool.push(h);
+  return pool.length?startRise(pool[rnd(0,pool.length-1)]):0;
+}
+const an=w=>/^[aeiou]/i.test(w)?'an':'a';
+let riseNote=null; // the notice for buildings that start to rise close together: {t, c, l, n, pips, el}
+function startRise(h){
+  const T=TYPES[h.color],l=h.lvl||0,add=riseDmd(h);
+  h.upTo=l+1;h.upAt=st.t+DENSE.warn;
+  sfx.pluck(h.color);ripple(h.x+.5,h.y+.5,h.color,1.2,0.8);
+  const g=riseNote&&riseNote.st===st&&st.t-riseNote.t<8&&riseNote.c===h.color&&riseNote.l===l?riseNote:{st,c:h.color,l,n:0,pips:0,el:null};
+  g.t=st.t;g.n++;g.pips+=add;riseNote=g;
+  const from=l?T.ups[l-1]:[T.one,T.name.toLowerCase()],to=T.ups[l];
+  const msg=g.n>1?`${g.n} ${from[1]} grow into ${to[1]}: +${g.pips} pips needed`
+    :`${an(from[0]).replace('a','A')} ${from[0]} grows into ${an(to[0])} ${to[0]}: +${add} pip${add>1?'s':''} needed`;
+  // the notice waits in the news queue (one message at a time); a newer group replaces a waiting one
+  news(()=>{if(g.el)g.el.remove();g.el=notice(msg,'grow')});
+  floatText(h.x+.5,h.y-.4,`+${add} pip${add>1?'s':''} soon`);
+  // the first week with a rise, the statement explains it (once for each player)
+  st.roseWeek=true;
+  return add;
+}
+function finishRise(h){
+  const add=riseDmd(h),T=TYPES[h.color];
+  h.lvl=h.upTo;delete h.upAt;delete h.upTo;h.lvAt=st.t;
+  floatText(h.x+.5,h.y-.4,`${T.ups[h.lvl-1][0]} +${add} pip${add>1?'s':''}`);sfx.bell(h.color,2);ripple(h.x+.5,h.y+.5,h.color,1.6,1);
+  ensureSupply(h.color);allocate();
 }
 // Plants are no longer free. When a color's customers need more pips than its plants have,
 // the player is warned once and that color turns red in the legend until they build or upgrade.
@@ -1157,20 +1224,28 @@ function resize(){
   W=r.width;H=r.height;DPR=Math.max(1,Math.min(2,window.devicePixelRatio||1,Math.sqrt(MAX_PIXELS/Math.max(1,W*H))));cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);if(onResize)onResize();
   if(st&&st.bounds) fitBounds();
 }
-// Size the buildable district to the screen's shape so the map fills it in landscape and portrait.
-// The short side grows by 2 squares a week; the long side follows the screen's aspect. Bounds only ever grow.
+// The buildable district. Its size does not depend on the screen: the short side starts at 9 squares and
+// grows by 1 square every 2 weeks to the city's area cap; the long side keeps the cap's shape. Only the
+// direction follows the screen: the long side runs along the screen's long side. Bounds only ever grow.
+// After a turn of the screen, the town turns too, but only when everything built fits in the new direction.
+function townSize(week){const [S,L]=city().area,short=Math.min(S,9+Math.floor(week/2));return [short,Math.min(L,Math.round(short*L/S))]}
+const atCap=()=>{const b=st.bounds,[S,L]=city().area,w=b.x1-b.x0+1,h=b.y1-b.y0+1;return Math.min(w,h)>=S&&Math.max(w,h)>=L};
 function fitBounds(){
   // the map uses the whole screen; the controls float over it
   // during the tutorial the map fits between the top controls and the coach card
   const topI=tut?52:0, botI=tut?$('coach').offsetHeight+70:0;
-  const ah=Math.max(120,H-topI-botI), a=W>0?W/ah:1.5, m=1.6;
-  const short=Math.min(9+2*(st.week-1),Math.min(COLS,ROWS));
-  let cols,rows;
-  if(a>=1){rows=short;cols=Math.round(a*(rows+m)-m)}else{cols=short;rows=Math.round((cols+m)/a-m)}
-  cols=Math.max(8,Math.min(COLS,cols));rows=Math.max(8,Math.min(ROWS,rows));
+  const ah=Math.max(120,H-topI-botI), a=W>0?W/ah:1.5;
+  const [short,long]=townSize(st.week),cols=a>=1?long:short,rows=a>=1?short:long;
   const x0=Math.floor((COLS-cols)/2),y0=Math.floor((ROWS-rows)/2);
   const nb={x0,y0,x1:x0+cols-1,y1:y0+rows-1},b=st.bounds;
-  st.bounds=b?{x0:Math.min(b.x0,nb.x0),y0:Math.min(b.y0,nb.y0),x1:Math.max(b.x1,nb.x1),y1:Math.max(b.y1,nb.y1)}:nb;
+  if(!b){st.bounds=nb;return}
+  const u={x0:Math.min(b.x0,nb.x0),y0:Math.min(b.y0,nb.y0),x1:Math.max(b.x1,nb.x1),y1:Math.max(b.y1,nb.y1)};
+  // the union is larger than one town in one direction: the screen turned
+  const [S,L]=city().area,uw=u.x1-u.x0+1,uh=u.y1-u.y0+1;
+  if(Math.min(uw,uh)<=Math.max(S,short)&&Math.max(uw,uh)<=Math.max(L,long)){st.bounds=u;return}
+  const inNb=i=>{const x=cx(i),y=cy(i);return x>=nb.x0&&x<=nb.x1&&y>=nb.y0&&y<=nb.y1};
+  for(let i=0;i<N;i++)if((occ[i]||wires[i].length)&&!inNb(i))return;
+  st.bounds=nb;
 }
 new ResizeObserver(resize).observe(stage);resize();
 function updateView(dt){
@@ -1511,6 +1586,7 @@ function notice(msg,kind){
   n.className='notice'+(kind?' '+kind:'');n.textContent=msg;box.append(n);
   while(box.children.length>2) box.firstChild.remove();
   setTimeout(()=>n.remove(),Math.min(6,2.4+msg.length/40)*1000);
+  return n;
 }
 // news: one at a time, NEWS_GAP apart, and only when no other message shows; the newest waits, older ones drop
 let newsQ=[],newsAt=-1e9;
@@ -1657,6 +1733,9 @@ function weekEnd(){
   // the first fuel bill of a city: a note in the statement (once for each player), not a separate message
   const fk='fuel-'+city().source;
   if(bill.fuel>0&&!seen[fk]&&!previewing){const S=SRC();W.note=`${S.burns||'Plants burn fuel'}: $${S.fuel} a week for each pip a plant sends.`;seen[fk]=1;try{localStorage.setItem(SEEN_KEY,JSON.stringify(seen))}catch(e){}}
+  // the first rise: a note in the statement (once for each player), not a hint
+  if(st.roseWeek&&!seen.rise&&!previewing){W.note=(W.note?W.note+' ':'')+'The town is full, so it grows up. Scaffolding shows a building that will rise and need more pips: add capacity to its network before it rises.';seen.rise=1;try{localStorage.setItem(SEEN_KEY,JSON.stringify(seen))}catch(e){}}
+  st.roseWeek=false;
   // the statement waits behind the chip: no card opens by itself. Its tips (spare pips, a loss) stay in it.
   st.lastW=W;st.stmtNew=true;chipWeek();
   allocate();updateHud();
@@ -1815,7 +1894,8 @@ function update(dt){
   if(st.twT<=0){const lit=houses.filter(h=>h.powered).length;if(lit)sfx.twinkle();st.twT=3+Math.random()*3-Math.min(1.5,lit*0.05)}
   st.spawnT-=dt;
   // a big customer counts as two arrivals, so total demand grows at the same pace whatever appears
-  if(st.spawnT<=0){const h=spawnHouse();st.spawnT=Math.max(BAL.spawnMin,BAL.spawnStart-st.t/BAL.spawnRamp)*city().spawnMul*(h?dmd(h):1);allocate()}
+  if(st.spawnT<=0){const d=growTown();st.spawnT=Math.max(BAL.spawnMin,BAL.spawnStart-st.t/BAL.spawnRamp)*city().spawnMul*(d||1);allocate()}
+  for(const h of houses) if(h.upAt&&st.t>=h.upAt) finishRise(h);
   // rising demand: a customer that has been around a while buys something new and needs another pip
   st.growT-=dt;
   if(st.growT<=0){
@@ -2741,15 +2821,50 @@ function updatePips(v,p){
   add(G('pipPlate'+tot.toFixed(3),()=>box(tot+.07,.01,.19)),PIP.plate,0,.05,31);
   for(let k=0;k<n;k++)add(geo,k>=p.cap?PIP.over:k<p.load?(p.over?PIP.danger:PIP.ink):PIP.free,-tot/2+w/2+k*(w+gap),.06,32);
 }
+/* Taller buildings (h.lvl 1 and 2). A home becomes an apartment block (3 floors, a flat roof in the network colour),
+   then a tower block (5 floors, a crown and a mast). The other customers stand on a deck of 1 or 2 floors, with
+   windows and a band in the network colour. Each part is one mesh: the windows of a building are one geometry.
+   A builder returns how far the demand dots rise above their place on the first building. */
+function boxes(list){
+  const parts=list.map(([w,h,d,x,y,z])=>{const g=box(w,h,d).toNonIndexed();g.translate(x,y,z);return g}),out=new T3.BufferGeometry();
+  for(const k of ['position','normal','uv']){const A=new Float32Array(parts.reduce((a,p)=>a+p.attributes[k].count*p.attributes[k].itemSize,0));
+    let o=0;for(const p of parts){A.set(p.attributes[k].array,o);o+=p.attributes[k].array.length}out.setAttribute(k,new T3.BufferAttribute(A,parts[0].attributes[k].itemSize))}
+  parts.forEach(p=>p.dispose());return out;
+}
+const RISE_HOME=[null,
+  (g,rm,wm)=>{mesh(G('ap-b',()=>box(.66,.6,.56)),SM('wall'),0,.3,0,g);mesh(G('ap-r',()=>box(.72,.06,.62)),rm,0,.63,0,g);
+    mesh(G('ap-h',()=>box(.2,.1,.18)),rm,.17,.71,-.12,g,false);mesh(G('ap-d',()=>box(.1,.15,.02)),SM('ink'),0,.075,.285,g,false);
+    mesh(G('ap-w',()=>{const L=[];for(let f=0;f<3;f++){for(const x of [-.2,0,.2])if(f||x)L.push([.11,.09,.02,x,.12+f*.18,.285]);for(const z of [-.12,.12])L.push([.02,.09,.11,.335,.12+f*.18,z])}return boxes(L)}),wm,0,0,0,g,false);
+    return .2},
+  (g,rm,wm)=>{mesh(G('tw-b',()=>box(.54,1.1,.54)),SM('wall'),0,.55,0,g);mesh(G('tw-r',()=>box(.6,.07,.6)),rm,0,1.13,0,g);
+    mesh(G('tw-c',()=>box(.3,.12,.3)),rm,0,1.22,0,g,false);mesh(G('tw-m',()=>cyl(.015,.015,.3,6)),SM('ink'),.2,1.33,-.2,g,false);
+    mesh(G('tw-base',()=>box(.58,.08,.58)),rm,0,.04,0,g,false);mesh(G('tw-d',()=>box(.12,.16,.02)),SM('ink'),0,.08,.275,g,false);
+    mesh(G('tw-w',()=>{const L=[];for(let f=0;f<5;f++){for(const x of [-.13,.13])if(f)L.push([.13,.1,.02,x,.16+f*.19,.275]);for(const z of [-.13,.13])L.push([.02,.1,.13,.275,.16+f*.19,z])}return boxes(L)}),wm,0,0,0,g,false);
+    return .74}];
+function riseDeck(g,rm,wm,c,l){
+  const h=.2*l;
+  mesh(G('dk-b'+l,()=>box(.88,h,.66)),SM('wall'),0,h/2,0,g);mesh(G('dk-t',()=>box(.92,.04,.7)),rm,0,h+.02,0,g,false);
+  mesh(G('dk-w'+l,()=>{const L=[];for(let f=0;f<l;f++){const y=.1+f*.2;for(const x of [-.3,-.1,.1,.3])L.push([.13,.08,.02,x,y,.335]);for(const z of [-.15,.15])L.push([.02,.08,.15,.445,y,z])}return boxes(L)}),wm,0,0,0,g,false);
+  const top=new T3.Group();top.position.y=h+.04;g.add(top);CUST[c](top,rm,wm);return h+.04;
+}
+// the scaffolding of a building that is about to rise: poles to the height of the next level, and a "+" that bobs over it
+const SCAF_H=[0,.75,1.3];
+function scaffold(v,l,c){
+  const g=new T3.Group(),H=SCAF_H[l]||1;
+  mesh(G('scaf'+l,()=>{const L=[];for(const x of [-.42,.42])for(const z of [-.36,.36])L.push([.03,H,.03,x,H/2,z]);
+    for(let y=.25;y<H;y+=.25){for(const z of [-.36,.36])L.push([.86,.025,.025,0,y,z]);for(const x of [-.42,.42])L.push([.025,.025,.74,x,y,0])}return boxes(L)}),SM('plank'),0,0,0,g,false);
+  const plus=mesh(G('plus',()=>boxes([[.26,.07,.07,0,0,0],[.07,.26,.07,0,0,0]])),SM('net'+c),0,H+.32,0,g,false);
+  v.g.add(g);return {g,plus,y:H+.32};
+}
 function houseView(h){
   const g=new T3.Group();g.position.set(h.x+.5,0,h.y+.5);world.add(g);
   const rm=new T3.MeshStandardMaterial({roughness:.85,flatShading:true}),wm=new T3.MeshStandardMaterial({roughness:.6});
-  CUST[h.color](g,rm,wm);
+  const l=h.lvl||0,lift=!l?(CUST[h.color](g,rm,wm),0):h.color===0?RISE_HOME[l](g,rm,wm):riseDeck(g,rm,wm,h.color,l);
   const hl=new T3.Mesh(G('halo',()=>new T3.PlaneGeometry(1,1)),new T3.MeshBasicMaterial({map:haloTex,transparent:true,depthWrite:false,opacity:0}));
   hl.rotation.x=-Math.PI/2;hl.position.y=.03;g.add(hl);
   const tb=mesh(G('tbar',()=>box(.64,.03,.07)),SM('line'),0,.04,.47,g,false),tf=mesh(G('tfill',()=>box(.64,.04,.075)),SM('net'+h.color),0,.045,.47,g,false);
-  const dg=new T3.Group();g.add(dg);
-  return {g,rm,wm,hl,tb,tf,dg,dk:-1};
+  const dg=new T3.Group();dg.position.y=lift;g.add(dg);
+  return {g,rm,wm,hl,tb,tf,dg,dk:-1,lv:l,sc:null};
 }
 
 /* ---------- ground marks: plant spots, hover, flashes, ripples, the upgrade ring ---------- */
@@ -2854,7 +2969,10 @@ function sync3D(now){
     v.g.position.y=cellH[idx(p.x,p.y)];v.upd(now/1000,p.load>0&&waveR<0&&cFade>.6,dtDraw,v.spin);updatePips(v,kept?{cap:kept.cap,load:0,over:false,extra:0}:p)}
   // customers: the same lit / brownout / dark fade as the 2D game
   dropViews(hviews,houses);
-  for(const h of houses){let v=hviews.get(h);if(!v){v=houseView(h);hviews.set(h,v)}
+  for(const h of houses){let v=hviews.get(h);
+    // a building that rose a level gets its new model
+    if(v&&v.lv!==(h.lvl||0)){world.remove(v.g);disposeTree(v.g);v.rm.dispose();v.wm.dispose();hviews.delete(h);v=null}
+    if(!v){v=houseView(h);hviews.set(h,v)}
     let target=h.powered?1:(h.share>0?(0.3+0.45*h.share)*(1-0.5*h.b):0.2*(1-h.b));
     if(waveR>=0)target*=1-darkAt(h.x,h.y);
     if(tut&&!h.powered&&!(h.share>0))target=0.03;
@@ -2870,8 +2988,16 @@ function sync3D(now){
     const grow=hk==='enter'?smoothT(clamp01((ho-.6)/.4)):hk==='clear'?1-smoothT(Math.min(1,ho/.3)):1;v.tb.scale.x=grow;
     if(show){const f=hk==='enter'?grow:Math.max(.02,1-h.b)*grow;v.tf.scale.x=f;v.tf.position.x=hk==='enter'?0:-.32*(grow-f)}
     const n=dmd(h);if(n!==v.dk){v.dk=n;emptyGroup(v.dg);
-      if(n>1)for(let k=0;k<n;k++)mesh(G('dot',()=>new T3.SphereGeometry(.05,10,8)),SM(k>=TYPES[h.color].demand?'ink':'net'+h.color),(k-(n-1)/2)*.14,DOT_Y[h.color],0,v.dg,false)}
-    v.g.position.y=cellH[idx(h.x,h.y)];const age=v.grown?1:Math.min(1,(st.t-h.born)/0.5);v.g.scale.setScalar((reduceMotion?1:Math.max(.01,easeOutBack(age)))*vanish(h));
+      // more than 5 dots go on two rows
+      const b=baseDmd(h),row=n>5?Math.ceil(n/2):n;
+      if(n>1)for(let k=0;k<n;k++){const r=Math.floor(k/row),m=r?n-row:row,j=k-r*row;
+        mesh(G('dot',()=>new T3.SphereGeometry(.05,10,8)),SM(k>=b?'ink':'net'+h.color),(j-(m-1)/2)*.14,DOT_Y[h.color]+r*.13,0,v.dg,false)}}
+    // scaffolding while the building waits to rise
+    if(h.upAt&&!v.sc)v.sc=scaffold(v,h.upTo,h.color);
+    if(!h.upAt&&v.sc){v.g.remove(v.sc.g);v.sc=null}
+    if(v.sc){const t=now/1000;v.sc.plus.position.y=v.sc.y+(reduceMotion?0:.06*Math.sin(t*4));v.sc.plus.rotation.y=reduceMotion?0:t*1.5}
+    const rise=h.lvAt!==undefined&&!reduceMotion&&st.t-h.lvAt<.6?.7+.3*easeOutBack((st.t-h.lvAt)/.6):1;
+    v.g.position.y=cellH[idx(h.x,h.y)];const age=v.grown?1:Math.min(1,(st.t-h.born)/0.5);v.g.scale.setScalar((reduceMotion?1:Math.max(.01,easeOutBack(age)))*vanish(h)*rise);
   }
   // where a plant can stand
   let sc=0;
@@ -3046,7 +3172,7 @@ function plantNear(h){
 }
 function autoBuy(){
   for(let c=0;c<st.colors;c++){
-    if(demOf(c)<=capOf(c)) continue;
+    if(demSoon(c)<=capOf(c)) continue;
     // an upgrade's price depends on the plant's level: compare a new plant with the cheapest upgrade where this colour is short
     const waiting=houses.find(h=>h.color===c&&!(h.share>0));
     const cp=fixPlant(c),uc=upCost(cp);
