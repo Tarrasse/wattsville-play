@@ -1,0 +1,6 @@
+/* The game's fonts, bundled so the game runs offline (desktop and Steam builds). Licenses: OFL-*.txt. */
+@font-face{font-family:'Chakra Petch';font-weight:600;font-display:block;src:url(ChakraPetch-SemiBold.ttf) format('truetype')}
+@font-face{font-family:'Chakra Petch';font-weight:700;font-display:block;src:url(ChakraPetch-Bold.ttf) format('truetype')}
+/* a variable font: one file for every weight */
+@font-face{font-family:'IBM Plex Sans';font-weight:100 700;font-display:block;src:url(IBMPlexSans.ttf) format('truetype')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;font-display:block;src:url(IBMPlexMono-Medium.ttf) format('truetype')}
