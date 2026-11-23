@@ -561,6 +561,8 @@ const $=id=>document.getElementById(id);
 const cv=$('cv'), stage=$('stage');
 let ctx=cv.getContext('2d'); // swapped for a moment while the city pictures are drawn
 let previewing=false; // true while a scripted game makes a city picture: no sound, no messages, no saving
+// set only by the balance harness (tools/balance.js): no rings, no floats and no draw loop while the bots play
+let botMode=false;
 let links,water,wires,cross,bridge,occ,plants,houses,st,flashes,drag=null,hover=-1,allocAcc=0,theme={};
 let pipe=new Uint8Array(0);
 // how much drawn water covers a point (0..1): the river's smooth shape, which can differ from the square grid
@@ -572,9 +574,9 @@ let best=0; try{best=+localStorage.getItem('livewire-best')||0}catch(e){}
 let ripples=[],linkBorn=new Map(),energized=new Map();
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const easeOutBack=t=>1+2.70158*Math.pow(t-1,3)+1.70158*Math.pow(t-1,2);
-function ripple(x,y,c,r=1.1,dur=0.9){if(!reduceMotion) ripples.push({x,y,c,r,dur,t:0})}
+function ripple(x,y,c,r=1.1,dur=0.9){if(!reduceMotion&&!botMode) ripples.push({x,y,c,r,dur,t:0})}
 // red rings out of each plant of a color that is short of power; they repeat while the color stays short
-function pulseShort(c){if(!reduceMotion) for(const p of plants) if(p.color===c) ripples.push({x:p.x+.5,y:p.y+.5,c,r:1.6,dur:1.1,t:0,warn:true})}
+function pulseShort(c){if(!reduceMotion&&!botMode) for(const p of plants) if(p.color===c) ripples.push({x:p.x+.5,y:p.y+.5,c,r:1.6,dur:1.1,t:0,warn:true})}
 // the moment a color becomes short: a warning sound and red rings, with no message to read
 function checkShort(c,short){
   st.shortSeen=st.shortSeen||[];
@@ -831,7 +833,7 @@ const unlocked=i=>true;
 const starStr=n=>'★'.repeat(n)+'☆'.repeat(3-n);
 if(!unlocked(cityI)) cityI=0;
 let floats=[];
-function floatText(x,y,text){if(!reduceMotion&&!previewing)floats.push({x,y,text,t:0,dur:1.5})}
+function floatText(x,y,text){if(!reduceMotion&&!previewing&&!botMode)floats.push({x,y,text,t:0,dur:1.5})}
 function checkRewards(){
   if(previewing) return;
   const C=city(),n=starsFor(C,st.score);
@@ -1904,7 +1906,8 @@ function update(dt){
     if(pool.length){
       const h=pool[rnd(0,pool.length-1)],T=TYPES[h.color];h.extra=(h.extra||0)+1;
       // map only: at most one appliance float each FLOAT_GAP
-      if(wallMs()-applAt>=FLOAT_GAP){applAt=wallMs();floatText(h.x+.5,h.y-.2,`${T.buys[rnd(0,T.buys.length-1)]} +1 pip`)}sfx.pluck(h.color);ripple(h.x+.5,h.y+.5,h.color,1,0.7);
+      // bot mode skips it: its rnd call depends on the wall clock, so the seeded bot games would not repeat
+      if(!botMode&&wallMs()-applAt>=FLOAT_GAP){applAt=wallMs();floatText(h.x+.5,h.y-.2,`${T.buys[rnd(0,T.buys.length-1)]} +1 pip`)}sfx.pluck(h.color);ripple(h.x+.5,h.y+.5,h.color,1,0.7);
       ensureSupply(h.color);allocate();
     }
   }
@@ -3095,6 +3098,7 @@ let last=performance.now(),themeAcc=0,dtDraw=0.016,saveAcc=0;
 let pulsePh=0;
 const pulseRate=()=>inMenu()||tut?1:st.paused||st.over?0:SPEEDS[speedI].v*(toastOpen()?0.5:1);
 function frame(now){
+  if(botMode) return;
   const dt=Math.max(0,Math.min(0.05,(now-last)/1000));last=now;dtDraw=dt;
   if(!st.paused&&!st.over) update(dt*SPEEDS[speedI].v*(toastOpen()?0.5:1));
   pulsePh=(pulsePh+dt*1.1*pulseRate())%.5;
