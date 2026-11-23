@@ -702,24 +702,24 @@ const CITIES=[
   {id:'godalming',name:'Godalming',year:1881,place:'Surrey, England',source:'hydro',
    fact:'A water wheel at Westbrook Mill on the River Wey lit the town’s streets from September 1881.',
    why:'The world’s first public electricity supply: anyone in the town could ask to be connected, not only one mill or one house.',
-   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,area:[11,24],stars:[1500,12750,13750],
+   plant:[-3,1],cable:40,bridges:2,cross:1,spawnMul:1.25,maxColors:2,area:[11,24],stars:[1000,13250,14250],
    water:river([[-30,3],[-14,2],[-6,4],[2,3],[10,5],[18,4],[30,5]],1.6)},
   {id:'newyork',name:'New York',year:1882,place:'Lower Manhattan',source:'coal',
    fact:'Edison’s Pearl Street Station burned coal to turn its dynamos, and switched on for about 85 customers on 4 September 1882.',
    why:'The first central power station: one plant, cables under the streets and a meter for each paying customer. Power companies still work this way.',
-   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1000,4250,5250],
+   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1000,4000,6750],
    // Manhattan narrows to its southern tip between the Hudson (west) and the East River (east)
    water:(x,y)=>{const s=Math.max(0,y-2)*0.6,L=-8+s,R=7-s;return (x<=L&&x>L-3)||(x>=R&&x<R+2)||y>=9}},
   {id:'askov',name:'Askov',year:1891,place:'Jutland, Denmark',source:'wind',
    fact:'Poul la Cour built test wind turbines at the Askov folk high school from 1891, and trained the first “wind electricians”.',
    why:'La Cour measured the wind like a scientist and showed that farms and villages could make their own power. Denmark still leads the world in wind power.',
-   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,area:[11,24],stars:[1500,5750,7500],
+   plant:[1,-1],cable:40,bridges:2,cross:1,spawnMul:1.1,maxColors:3,area:[11,24],stars:[1250,5250,7000],
    // open farmland with a small lake and a stream
    water:anyOf((x,y)=>Math.hypot((x+11)/1.4,y-6)<2.4,river([[-11,6],[-4,9],[4,10],[30,12]],1.0))},
   {id:'niagara',name:'Niagara Falls',year:1896,place:'New York, USA',source:'hydro',
    fact:'From 16 November 1896, the Adams Power Plant at Niagara Falls sent AC power to Buffalo, about 30 km away.',
    why:'Niagara proved that alternating current (AC) can carry power far from where it is made. It ended the “war of the currents”: the grids of the world use AC.',
-   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,area:[11,24],stars:[1000,1750,6000],
+   plant:[-3,0],cable:45,bridges:4,cross:1,spawnMul:1.15,maxColors:4,area:[11,24],stars:[750,2750,4250],
    // the Niagara River runs north past the town
    water:river([[-4,-20],[-3,-8],[-1,-2],[1,4],[2,20]],3.2)},
   {id:'obninsk',name:'Obninsk',year:1954,place:'Kaluga region, USSR',source:'nuclear',
@@ -731,7 +731,7 @@ const CITIES=[
   {id:'dubai',name:'Dubai',year:1961,place:'Deira and Bur Dubai',source:'gas',
    fact:'The Dubai Electricity Company began supplying Deira in 1961. Today, Dubai’s power stations burn natural gas.',
    why:'Dubai grew from a small trading town into a city of millions on power from oil and gas. Its gas plants also turn seawater into drinking water.',
-   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,area:[11,24],stars:[1250,12500,13500],
+   plant:[-6,-1],cable:40,bridges:3,cross:1,spawnMul:1,maxColors:4,area:[11,24],stars:[750,10250,11250],
    // the gas pipeline comes in from the west and runs through the town, south of the Creek
    pipe:[[-18,-3],[-7,-2],[-3,2],[4,4],[14,3],[22,-1]],
    // the Gulf coast to the north; the Creek divides Deira from Bur Dubai and ends in a lagoon
