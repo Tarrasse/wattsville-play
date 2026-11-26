@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head>
-<!-- wattsville-preview: fix/no-locked-customers@8ab91a2 -->
+<!-- wattsville-preview: fix/no-locked-customers@28592d2 -->
 <meta name="robots" content="noindex"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Wattsville 3D</title><meta name="claude:viewport-fit-sides" content="cover"><link rel="stylesheet" href="fonts/fonts.css"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <style>
 /* Layout: one-screen game. Thin status bar on top, the survey-map canvas fills the middle, tool tray at the bottom. */
@@ -709,7 +709,7 @@ const CITIES=[
   {id:'newyork',name:'New York',year:1882,place:'Lower Manhattan',source:'coal',
    fact:'Edison’s Pearl Street Station burned coal to turn its dynamos, and switched on for about 85 customers on 4 September 1882.',
    why:'The first central power station: one plant, cables under the streets and a meter for each paying customer. Power companies still work this way.',
-   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1000,4000,6750],
+   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1000,5250,6750],
    // Manhattan narrows to its southern tip between the Hudson (west) and the East River (east)
    water:(x,y)=>{const s=Math.max(0,y-2)*0.6,L=-8+s,R=7-s;return (x<=L&&x>L-3)||(x>=R&&x<R+2)||y>=9}},
   {id:'askov',name:'Askov',year:1891,place:'Jutland, Denmark',source:'wind',
