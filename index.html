@@ -707,7 +707,7 @@ const CITIES=[
   {id:'newyork',name:'New York',year:1882,place:'Lower Manhattan',source:'coal',
    fact:'Edison’s Pearl Street Station burned coal to turn its dynamos, and switched on for about 85 customers on 4 September 1882.',
    why:'The first central power station: one plant, cables under the streets and a meter for each paying customer. Power companies still work this way.',
-   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1000,4000,6750],
+   plant:[3,1],cable:45,bridges:3,cross:1,spawnMul:1,maxColors:3,area:[11,24],stars:[1000,5250,6750],
    // Manhattan narrows to its southern tip between the Hudson (west) and the East River (east)
    water:(x,y)=>{const s=Math.max(0,y-2)*0.6,L=-8+s,R=7-s;return (x<=L&&x>L-3)||(x>=R&&x<R+2)||y>=9}},
   {id:'askov',name:'Askov',year:1891,place:'Jutland, Denmark',source:'wind',
@@ -939,13 +939,15 @@ function underControls(x,y){
   }
   return false;
 }
-function freeCell(minD){
+function freeCell(minD,color){
   const b=st.bounds;
   for(let k=0;k<300;k++){
     const x=rnd(b.x0,b.x1),y=rnd(b.y0,b.y1),i=idx(x,y);
     if(water[i]||occ[i]||wires[i].length||cross[i]) continue;
     if(!farFromEntities(x,y,minD)||inPlantZone(x,y)) continue;
     if(underControls(x,y)) continue;
+    // a new lot must not be closed in, and must not close in a customer
+    if(color!==undefined&&locksHome(x,y,color,true)) continue;
     return {x,y};
   }
   return null;
@@ -954,7 +956,7 @@ function spawnHouse(color,spaced){
   // pick a customer type by its weight; demand doesn't follow supply, so the player manages capacity
   if(color===undefined){let tot=0;for(let c=0;c<st.colors;c++)tot+=TYPES[c].weight;let r=Math.random()*tot;color=0;
     for(let c=0;c<st.colors;c++){r-=TYPES[c].weight;if(r<=0){color=c;break}}}
-  const p=spaced?freeCell(2):freeCell(2)||freeCell(1);if(!p) return;
+  const p=spaced?freeCell(2,color):freeCell(2,color)||freeCell(1,color);if(!p) return;
   const h=addEntity('house',color,p.x,p.y);
   // later in a run, a new customer can arrive in a taller building
   if(!tut&&st.week>=DENSE.lotWeek&&Math.random()<Math.min(DENSE.lotMax,(st.week-DENSE.lotWeek+1)*DENSE.lotStep)) h.lvl=1;
@@ -1047,16 +1049,57 @@ function inPlantZone(x,y){
 }
 function freeLand(x,y){const i=idx(x,y);return inBounds(x,y)&&!occ[i]&&!water[i]&&!wires[i].length&&!cross[i]}
 const canBuildPlant=(x,y)=>freeLand(x,y)&&!plantRule(x,y);
+/* ---------- no locked customers: a cable of its colour can always reach a customer ---------- */
+// A flood from customer h over the squares that a cable of its colour can pass. h is open when the flood reaches
+// LOCK_K squares, a plant of its colour, or a square where a plant can stand. cable=false: only buildings and the
+// edge of the town block (the player can erase a cable).
+const LOCK_K=30;
+function homeLocked(h,cable=true){
+  const c=h.color,s=idx(h.x,h.y),seen=new Set([s]),q=[s];
+  for(let k=0;k<q.length;k++){if(q.length>=LOCK_K) return false;
+    for(const j of nbr4(q[k])){if(seen.has(j)||!inBounds(cx(j),cy(j))) continue;const e=occ[j];
+      if(e){if(e.color!==c) continue;if(e.kind==='plant') return false}
+      else if(cable&&entryCost(j,c)<0) continue;
+      seen.add(j);q.push(j)}}
+  return !q.some(i=>!occ[i]&&canBuildPlant(cx(i),cy(i)));
+}
+// Does a change on (x,y) lock a customer? The customers near it that are open before the change must stay open.
+// set() makes the change and undo() takes it back. Not in the tutorial: it places its buildings itself.
+function closesIn(x,y,set,undo,also){
+  if(tut) return false;
+  const near=houses.filter(h=>Math.max(Math.abs(h.x-x),Math.abs(h.y-y))<=6&&!homeLocked(h));
+  set();try{return (also&&homeLocked(also))||near.some(h=>homeLocked(h))}finally{undo()}
+}
+// a new building of colour c on (x,y); a new customer (house) must also be open itself
+function locksHome(x,y,c,house){
+  // the building also joins its list: the rules of plant sites (coal smoke, wind) look at the lists
+  const i=idx(x,y),e={kind:house?'house':'plant',color:c,x,y},list=house?houses:plants;
+  return closesIn(x,y,()=>{occ[i]=e;list.push(e)},()=>{occ[i]=null;list.pop()},house&&e);
+}
+// a square for a new plant of colour c: the city's rule, and no customer closed in.
+// The draw loop asks for every square on each frame, so the answers wait in a cache until the town changes.
+// The town's key is read at most each 100 ms; buyPlant checks again, so an old answer only shows for a moment.
+const spotCache={key:'',at:-1e9,m:new Map()};
+function plantSpot(x,y,c){
+  if(!canBuildPlant(x,y)) return false;
+  const now=performance.now();
+  if(now-spotCache.at>100){spotCache.at=now;
+    const key=houses.length+':'+plants.reduce((a,p)=>a+idx(p.x,p.y)*7+p.color,plants.length)+':'+cableSig()+':'+Object.values(st.bounds).join();
+    if(spotCache.key!==key){spotCache.key=key;spotCache.m.clear()}}
+  const k=idx(x,y)*4+c;let v=spotCache.m.get(k);
+  if(v===undefined){v=!locksHome(x,y,c);spotCache.m.set(k,v)}
+  return v;
+}
 // a square for a plant the game places itself: it follows the rule, and stays clear of the controls
-function plantCell(){
+function plantCell(color){
   const b=st.bounds,ok=[];
-  for(let y=Math.ceil(b.y0);y<=b.y1;y++)for(let x=Math.ceil(b.x0);x<=b.x1;x++) if(canBuildPlant(x,y)&&!underControls(x,y)) ok.push({x,y,far:farFromEntities(x,y,2)});
+  for(let y=Math.ceil(b.y0);y<=b.y1;y++)for(let x=Math.ceil(b.x0);x<=b.x1;x++) if(canBuildPlant(x,y)&&!underControls(x,y)&&!locksHome(x,y,color)) ok.push({x,y,far:farFromEntities(x,y,2)});
   const far=ok.filter(c=>c.far);
   const pick=far.length?far:ok;
   return pick.length?pick[Math.floor(Math.random()*pick.length)]:null;
 }
 // a free plant (the start of a colour) sells as if it cost the base price
-function spawnPlant(color){const p=plantCell();if(p) addEntity('plant',color,p.x,p.y).paid=Math.round(ECON.plant*SRC().cost)}
+function spawnPlant(color){const p=plantCell(color);if(p) addEntity('plant',color,p.x,p.y).paid=Math.round(ECON.plant*SRC().cost)}
 
 // A link is an explicit cable segment between two neighbouring squares, made only by dragging.
 // Squares that merely sit next to each other never connect on their own.
@@ -1120,6 +1163,8 @@ function allocate(){
       }
     }
     if(!h.powered&&h.prev) h.offAt=st.t;
+    // a customer that buildings close in (an old save) does not dim: no cable can reach it, so it can't end the run
+    h.locked=!tut&&!(h.share>0)&&homeLocked(h,false);
   }
 }
 
@@ -1134,6 +1179,9 @@ function placeAt(i,c){
   const auto=wires[i].length===1&&!cross[i];
   if(wires[i].length>=(cross[i]?2:1)&&!auto) return false;
   if(auto&&water[i]){notice('Cables can\u2019t cross on a bridge. Cross on land.');return false}
+  // a crossover or a bridge closes the square to the other colours: it must not close in a customer
+  if((auto||water[i])&&closesIn(x,y,()=>{wires[i].push(c);if(auto)cross[i]=1},()=>{wires[i].pop();if(auto)cross[i]=0})){
+    if(!botMode)notice('This cable blocks a home: no other cable could reach it. Go around.');return false}
   const cost=ECON.cable+(water[i]&&!bridge[i]?ECON.bridge:0)+(auto?ECON.cross:0);
   if(!spend(cost,`Cable here costs`)) return false;
   if(water[i]) bridge[i]=1;
@@ -1166,6 +1214,7 @@ function buyPlant(i){
   const x=cx(i),y=cy(i);
   if(!freeLand(x,y)){flashes.push({i,t:0.5});sfx.thud();return false}
   const why=plantRule(x,y);if(why){flashes.push({i,t:0.5});sfx.thud();notice(why);return false}
+  if(locksHome(x,y,st.plantColor)){flashes.push({i,t:0.5});sfx.thud();notice('A plant here blocks a home: no cable could reach it. Build on another square.');return false}
   const c=plantCost();if(!spend(c,`A ${TYPES[st.plantColor].name} plant costs`)) return false;
   // the drop preview showed the price: no float
   st.built++;st.wkPlant=(st.wkPlant||0)+c;st.wkPlantN=(st.wkPlantN||0)+1;
@@ -1415,7 +1464,7 @@ function plantDragAt(x,y){
   pdrag.x=x;pdrag.y=y;
   pdrag.i=el&&el.closest('.dock,.bar,.overlay,#pcard')?-1:toCell(x-r.left,y-r.top);
   const i=pdrag.i,ok=i>=0&&inBounds(cx(i),cy(i))&&freeLand(cx(i),cy(i)),rule=ok&&plantRule(cx(i),cy(i));
-  pdrag.why=i<0?'':!ok?'Can\u2019t build here':rule?shortRule(rule):st.money<plantCost()?'Not enough money \u00b7 '+fmt$(plantCost()):'';
+  pdrag.why=i<0?'':!ok?'Can\u2019t build here':rule?shortRule(rule):!plantSpot(cx(i),cy(i),pdrag.color)?'Blocks a home':st.money<plantCost()?'Not enough money \u00b7 '+fmt$(plantCost()):'';
   pdrag.ok=i>=0&&!pdrag.why;
 }
 function endPlantDrag(drop){
@@ -1881,6 +1930,7 @@ function update(dt){
   const rate=ECON.pay*(st.allLit?ECON.allLit:1);
   for(const h of houses.slice()){
     if(h.grace>0){h.grace-=dt;if(!h.powered)continue}
+    if(h.locked) continue;
     if(h.powered){h.b=Math.max(0,h.b-dt/BAL.recover);earn(dt*rate*payOf(h))}
     else{
       // brownout homes pay their share; they dim more slowly than unconnected homes, never faster
@@ -2206,7 +2256,7 @@ function draw(now){
   if(st.mode==='plant'&&!st.paused&&!previewing){
     ctx.fillStyle=theme.nets[st.plantColor];ctx.globalAlpha=.16+.05*Math.sin(now/300);
     const c2=st.cam;
-    for(let y=Math.ceil(c2.y0);y<=c2.y1;y++)for(let x=Math.ceil(c2.x0);x<=c2.x1;x++) if(canBuildPlant(x,y)){rr(x+.1,y+.1,.8,.8,.18);ctx.fill()}
+    for(let y=Math.ceil(c2.y0);y<=c2.y1;y++)for(let x=Math.ceil(c2.x0);x<=c2.x1;x++) if(plantSpot(x,y,st.plantColor)){rr(x+.1,y+.1,.8,.8,.18);ctx.fill()}
     ctx.globalAlpha=1;
     if(hover>=0&&inBounds(cx(hover),cy(hover))&&freeLand(cx(hover),cy(hover))&&plantRule(cx(hover),cy(hover))){
       ctx.strokeStyle=theme.danger;ctx.lineWidth=.06;rr(cx(hover)+.08,cy(hover)+.08,.84,.84,.18);ctx.stroke();
@@ -3007,7 +3057,7 @@ function sync3D(now){
   const pd=pdrag&&pdrag.on?pdrag:null;
   if((st.mode==='plant'||pd)&&!st.paused){
     spotMat.color.set(theme.nets[pd?pd.color:st.plantColor]);spotMat.opacity=.2+.06*Math.sin(now/300);const M4=new T3.Matrix4();
-    for(let y=Math.ceil(c.y0);y<=c.y1;y++)for(let x=Math.ceil(c.x0);x<=c.x1;x++)if(canBuildPlant(x,y)){M4.makeTranslation(x+.5,cellH[idx(x,y)]+.015,y+.5);spots.setMatrixAt(sc++,M4)}
+    for(let y=Math.ceil(c.y0);y<=c.y1;y++)for(let x=Math.ceil(c.x0);x<=c.x1;x++)if(plantSpot(x,y,pd?pd.color:st.plantColor)){M4.makeTranslation(x+.5,cellH[idx(x,y)]+.015,y+.5);spots.setMatrixAt(sc++,M4)}
   }
   spots.count=sc;spots.instanceMatrix.needsUpdate=true;
   // hover
@@ -3142,7 +3192,7 @@ const nbr4=i=>{const x=cx(i),y=cy(i),out=[];if(x>0)out.push(i-1);if(x<COLS-1)out
 function landNear(h,R=3){
   for(let r=1;r<=R;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
     const x=h.x+dx,y=h.y+dy;
-    if(Math.max(Math.abs(dx),Math.abs(dy))===r&&x>=0&&y>=0&&x<COLS&&y<ROWS&&canBuildPlant(x,y)) return {x,y};
+    if(Math.max(Math.abs(dx),Math.abs(dy))===r&&x>=0&&y>=0&&x<COLS&&y<ROWS&&canBuildPlant(x,y)&&!locksHome(x,y,h.color)) return {x,y};
   }
   return null;
 }
